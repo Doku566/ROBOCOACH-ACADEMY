@@ -599,6 +599,20 @@ async function handleRegistration(e, emailStr) {
         }
 
         processLoginSuccess(emailStr, data[0]);
+
+        // 🔔 SEND WELCOME EMAIL (Non-blocking — fire and forget)
+        fetch('/api/send-welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombre: newProfile.nombre,
+                email: newProfile.email,
+                rango: newProfile.rango
+            })
+        }).then(r => r.json())
+          .then(d => console.log('📧 Welcome email sent:', d.id || d))
+          .catch(e => console.warn('Email service unavailable (non-critical):', e));
+
     } catch(err) {
         console.error(err);
         alert('Error crítico de escritura en Base de Datos (Supabase).');
