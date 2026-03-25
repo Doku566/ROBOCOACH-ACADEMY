@@ -455,23 +455,31 @@ function showLogin(emailInputValue = '') {
     setTimeout(()=>document.getElementById('loginEmail')?.focus(), 100);
 }
 
-function checkAuthStep() {
+async function checkAuthStep() {
     const emailStr = document.getElementById('loginEmail').value.trim().toLowerCase();
     if (!emailStr || !emailStr.includes('@')) {
         alert('Por favor ingresa un correo electrónico válido.');
         return;
     }
 
-    // Check if user exists in the simulated DataBase
-    let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-    const exists = usersDB.find(u => u.email === emailStr);
+    const btn = document.querySelector('#checkoutModal .btn-primary');
+    if(btn) { btn.innerText = "Consultando BD Nube..."; btn.disabled = true; }
 
-    if (exists) {
-        // User exists -> Execute Login directly
-        processLoginSuccess(emailStr);
-    } else {
-        // User is NEW -> Show full Registration Form
-        showRegistrationForm(emailStr);
+    try {
+        const { data, error } = await window.db.from('perfiles').select('*').eq('email', emailStr);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            // User exists -> Execute Login directly
+            processLoginSuccess(emailStr, data[0]);
+        } else {
+            // User is NEW -> Show full Registration Form
+            showRegistrationForm(emailStr);
+        }
+    } catch(err) {
+        console.error(err);
+        alert('Error de conexión con Supabase.');
+        if(btn) { btn.innerText = "Continuar"; btn.disabled = false; }
     }
 }
 
@@ -528,60 +536,55 @@ function showRegistrationForm(emailStr) {
     setTimeout(()=>document.getElementById('regName')?.focus(), 100);
 }
 
-function handleRegistration(e, emailStr) {
+async function handleRegistration(e, emailStr) {
     e.preventDefault();
-    
-    const newProfile = {
-        name: document.getElementById('regName').value,
-        university: document.getElementById('regUni').value,
-        major: document.getElementById('regMajor').value,
-        team: document.getElementById('regTeam').value || 'N/A',
-        role: document.getElementById('regRole').value
-    };
+    const btn = e.target.querySelector('button[type="submit"]');
+    if(btn) { btn.innerText = "Creando Perfil en la Nube..."; btn.disabled = true; }
 
     // Determine initial status based on domain BEFORE saving
     const institutionalDomains = ['@utmatamoros.edu.mx', '@tecvictoria.edu.mx', '@cetis130.edu.mx'];
     const isInstitutional = institutionalDomains.some(domain => emailStr.endsWith(domain));
-    const initialStatus = isInstitutional ? 'inst' : 'free';
+    const initialStatus = isInstitutional ? 'B2B' : 'GRATIS';
 
-    // Insert into mock DB
-    let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-    usersDB.push({
-        id: String(1000 + usersDB.length + 1),
+    const newProfile = {
         email: emailStr,
-        date: new Date().toISOString().split('T')[0],
-        status: initialStatus,
-        profileData: newProfile
-    });
-    localStorage.setItem('admin_users', JSON.stringify(usersDB));
-    
-    // Si era institucional, descontamos una licencia del B2B MockDB
-    if (isInstitutional) {
-        let licensesDB = JSON.parse(localStorage.getItem('admin_licenses')) || [];
-        const domainMatch = institutionalDomains.find(d => emailStr.endsWith(d));
-        if (domainMatch) {
-            let lic = licensesDB.find(l => l.domain === domainMatch);
-            if (lic && lic.used < lic.total) {
-                lic.used += 1;
-                localStorage.setItem('admin_licenses', JSON.stringify(licensesDB));
-            }
-        }
-    }
+        nombre: document.getElementById('regName').value,
+        escuela: document.getElementById('regUni').value,
+        equipo: document.getElementById('regTeam').value || 'N/A',
+        rango: initialStatus,
+        contrasena_hash: 'NOPASSWORD_MVP' // MVP Auto-login
+    };
 
-    // Proceso final de login 
-    processLoginSuccess(emailStr);
+    try {
+        const { data, error } = await window.db.from('perfiles').insert([newProfile]).select();
+        if (error) throw error;
+        
+        // Si era institucional, intentamos descontar una licencia asíncronamente (Mock parcial en Supabase B2B view)
+        if (isInstitutional) {
+            const domainMatch = institutionalDomains.find(d => emailStr.endsWith(d));
+            await window.db.from('licencias_b2b')
+                .update({ asientos_usados: 1 }) // Simplify update for prototype
+                .eq('institucion', 'Universidad Autónoma de Tamaulipas');
+        }
+
+        processLoginSuccess(emailStr, data[0]);
+    } catch(err) {
+        console.error(err);
+        alert('Error crítico de escritura en Base de Datos (Supabase).');
+        if(btn) { btn.innerText = "Crear Cuenta y Acceder"; btn.disabled = false; }
+    }
 }
 
-function processLoginSuccess(emailStr) {
+function processLoginSuccess(emailStr, profileData = null) {
     // Save to global frontend state
     userEmail = emailStr;
     localStorage.setItem('userEmail', userEmail);
+    localStorage.setItem('userProfile', JSON.stringify(profileData));
     
-    // Domain Check for Automatic PRO UI Activation
-    const institutionalDomains = ['@utmatamoros.edu.mx', '@tecvictoria.edu.mx', '@cetis130.edu.mx'];
-    const isInstitutional = institutionalDomains.some(domain => emailStr.endsWith(domain));
+    // Domain Check or Profile Check
+    const isPremium = profileData && (profileData.rango === 'B2B' || profileData.rango === 'PRO');
     
-    if (isInstitutional) {
+    if (isPremium) {
         isSubscribed = true;
         localStorage.setItem('isSubscribed', 'true');
         
@@ -590,10 +593,10 @@ function processLoginSuccess(emailStr) {
             <div class="modal-content" style="text-align:center;max-width:500px;">
                 <span class="close" onclick="closeModal(); renderCourses();">&times;</span>
                 <div style="font-size:3rem;color:#00C853;margin-bottom:1rem">${ICONS.check}</div>
-                <h2 style="margin-bottom:1rem">Licencia Institucional Verificada</h2>
-                <p style="color:#A0A0A0;margin:1rem 0">El convenio de <strong>${emailStr.split('@')[1]}</strong> está activo y tiene plazas disponibles.</p>
+                <h2 style="margin-bottom:1rem">Acceso Premium Verificado (Nube)</h2>
+                <p style="color:#A0A0A0;margin:1rem 0">Tu perfil en la base de datos está autorizado en nivel <strong>${profileData.rango}</strong>.</p>
                 <div style="background:rgba(0,200,83,0.1);padding:1rem;border-radius:8px;border:1px solid rgba(0,200,83,0.3);margin:1.5rem 0;">
-                    <span style="color:#00C853;font-weight:600;font-size:0.9rem">✔ Tienes Acceso PRO Gratuito Habilitado</span>
+                    <span style="color:#00C853;font-weight:600;font-size:0.9rem">✔ Sistema Operando Online (Supabase)</span>
                 </div>
                 <button class="btn-primary" style="width:100%" onclick="closeModal(); renderCourses();">Comenzar a Aprender</button>
             </div>
@@ -828,29 +831,39 @@ function closeForum() {
     if(modal) modal.style.display = 'none';
 }
 
-function renderForumPosts() {
-    const posts = JSON.parse(localStorage.getItem('v5_forum')) || [];
+async function renderForumPosts() {
     const container = document.getElementById('forumPosts');
     if(!container) return;
     
-    // Reverse to show newest first
-    container.innerHTML = posts.slice().reverse().map(p => `
-        <div style="background:#252525;padding:1rem;border-radius:8px;border:1px solid ${p.isMentor ? 'var(--accent-blue)' : 'var(--glass-border)'}; ${p.isMentor ? 'background:rgba(0,180,216,0.05)' : ''}">
-            <div style="display:flex;align-items:center;border-bottom:1px solid var(--glass-border);padding-bottom:0.5rem;margin-bottom:0.5rem;">
-                <strong style="${p.isMentor ? 'color:var(--accent-blue)' : 'color:white'}">${sanitize(p.author)}</strong>
-                ${p.isMentor ? '<span class="status-badge status-pro" style="margin-left:0.5rem;font-size:0.65rem;border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(0,180,216,0.1)">INSTRUCTOR V5</span>' : ''}
-                <span style="color:var(--text-muted);font-size:0.75rem;margin-left:auto">${p.date}</span>
+    try {
+        const { data: posts, error } = await window.db
+            .from('foro_comunidad')
+            .select('*')
+            .order('fecha_publicacion', { ascending: false });
+            
+        if (error) throw error;
+        
+        container.innerHTML = posts.map(p => `
+            <div style="background:#252525;padding:1rem;border-radius:8px;border:1px solid ${p.autor_rango==='VEX INSTRUCTOR' ? 'var(--accent-blue)' : 'var(--glass-border)'}; ${p.autor_rango==='VEX INSTRUCTOR' ? 'background:rgba(0,180,216,0.05)' : ''}">
+                <div style="display:flex;align-items:center;border-bottom:1px solid var(--glass-border);padding-bottom:0.5rem;margin-bottom:0.5rem;">
+                    <strong style="${p.autor_rango==='VEX INSTRUCTOR' ? 'color:var(--accent-blue)' : 'color:white'}">${sanitize(p.autor_nombre)}</strong>
+                    ${p.autor_rango==='VEX INSTRUCTOR' ? '<span class="status-badge status-pro" style="margin-left:0.5rem;font-size:0.65rem;border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(0,180,216,0.1)">INSTRUCTOR V5</span>' : ''}
+                    <span style="color:var(--text-muted);font-size:0.75rem;margin-left:auto">${new Date(p.fecha_publicacion).toLocaleString()}</span>
+                </div>
+                <p style="margin-top:0.5rem;font-size:0.9rem;white-space:pre-wrap;line-height:1.4">${sanitize(p.mensaje)}</p>
             </div>
-            <p style="margin-top:0.5rem;font-size:0.9rem;white-space:pre-wrap;line-height:1.4">${sanitize(p.text)}</p>
-        </div>
-    `).join('');
-    
-    if(posts.length === 0) {
-        container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:2rem;">Sé el primero en hacer una pregunta técnica o compartir tu código de competencia.</p>`;
+        `).join('');
+        
+        if(posts.length === 0) {
+            container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:2rem;">Sé el primero en hacer una pregunta técnica o compartir tu código de competencia.</p>`;
+        }
+    } catch(err) {
+        console.error("Error al cargar foro de Supabase:", err);
+        container.innerHTML = `<p style="text-align:center;color:var(--vex-red);padding:2rem;">Error conectando al foro en vivo. Reintentando...</p>`;
     }
 }
 
-function submitForumPost(e) {
+async function submitForumPost(e) {
     e.preventDefault();
     const textarea = document.getElementById('forumInput');
     const text = textarea.value.trim();
@@ -863,25 +876,42 @@ function submitForumPost(e) {
         return;
     }
     
-    let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-    const user = usersDB.find(u => u.email === userEmail) || { profileData: {} };
-    const authorName = user.profileData && user.profileData.name ? user.profileData.name : userEmail.split('@')[0];
+    const btn = e.target.querySelector('button');
+    if (btn) { btn.innerText = 'Enviando...'; btn.disabled = true; }
     
-    // Instructor / Mentor logic identifier
-    const isMentor = userEmail.includes('domingo') || userEmail.includes('admin');
-    
-    const newPost = {
-        id: Date.now(),
-        author: authorName,
-        text: text,
-        date: new Date().toLocaleDateString(),
-        isMentor: isMentor
-    };
-    
-    const posts = JSON.parse(localStorage.getItem('v5_forum')) || [];
-    posts.push(newPost);
-    localStorage.setItem('v5_forum', JSON.stringify(posts));
-    
-    textarea.value = '';
-    renderForumPosts();
+    try {
+        let userP = {};
+        try { userP = JSON.parse(localStorage.getItem('userProfile')) || {}; } catch(e) {}
+        
+        const authorName = userP.nombre || userEmail.split('@')[0];
+        const isMentor = userEmail.includes('domingo') || userEmail.includes('admin') || userP.rango === 'VEX INSTRUCTOR';
+        const finalRole = isMentor ? 'VEX INSTRUCTOR' : (userP.rango || 'GRATIS');
+        
+        const { error } = await window.db.from('foro_comunidad').insert([{
+            autor_nombre: authorName,
+            autor_rango: finalRole,
+            mensaje: text
+        }]);
+        
+        if (error) throw error;
+        
+        textarea.value = '';
+        renderForumPosts();
+    } catch(err) {
+        console.error(err);
+        alert('Error publicando el mensaje.');
+    } finally {
+        if (btn) { btn.innerText = 'Publicar Sugerencia'; btn.disabled = false; }
+    }
+}
+
+// INYECCIÓN DE TIEMPO REAL
+if (window.db) {
+    window.db.channel('custom-all-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'foro_comunidad' }, payload => {
+          if (document.getElementById('forumModal')?.style.display === 'flex') {
+              renderForumPosts();
+          }
+      })
+      .subscribe();
 }
