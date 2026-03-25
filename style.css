@@ -634,3 +634,219 @@ ul.features li {
     border-radius: 4px; margin-top: 0.5rem; overflow: hidden;
 }
 .progress-bar { height: 100%; background: #00C853; transition: width 0.5s ease; }
+
+/* ============================================
+   PHASE 6: PREMIUM UX — ANIMATIONS & MOBILE
+   ============================================ */
+
+/* --- Scroll Reveal Animations --- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-30px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(227, 27, 35, 0); }
+    50%       { box-shadow: 0 0 20px 4px rgba(227, 27, 35, 0.3); }
+}
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Scroll-triggered entry — activated via JS IntersectionObserver */
+.reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+
+/* Hero text animation */
+.hero-content h1 {
+    animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+.hero-content p {
+    animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+.hero-content .hero-cta {
+    animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+.hero-badges {
+    animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+
+/* --- Premium Course Card Hover Micro-interactions --- */
+.course-card {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                border-color 0.3s ease,
+                box-shadow 0.3s ease !important;
+}
+.course-card:hover {
+    transform: translateY(-6px) scale(1.015) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(227,27,35,0.2) !important;
+}
+.course-card:hover .card-thumbnail {
+    transform: scale(1.04);
+}
+.card-thumbnail {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    overflow: hidden;
+}
+
+/* --- Loading Spinner Button State --- */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 18px; height: 18px;
+    margin: -9px 0 0 -9px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+/* --- Skeleton Loading Cards (CMS & Dashboard) --- */
+.skeleton {
+    background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 6px;
+}
+
+/* --- Mobile Hamburger Menu --- */
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 0.3rem;
+    line-height: 1;
+}
+
+/* --- Toast Improved (already in JS, enhance with CSS) --- */
+#toast-container > div {
+    max-width: 380px;
+    word-break: break-word;
+}
+
+/* --- Forum Modal Enhancements --- */
+#forumModal .modal-content {
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+#forumPosts {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+#forumPosts::-webkit-scrollbar { width: 4px; }
+#forumPosts::-webkit-scrollbar-track { background: transparent; }
+#forumPosts::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+/* --- Pulse animation on PRO/B2B badge (draws attention) --- */
+.status-badge.status-pro {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+/* ============================================
+   RESPONSIVE / MOBILE FIRST  (≤ 768px)
+   ============================================ */
+@media (max-width: 768px) {
+    .container { padding: 0 1rem; }
+
+    /* Header nav collapses */
+    .nav-links {
+        display: none;
+        flex-direction: column;
+        gap: 0;
+        position: absolute;
+        top: 70px; left: 0; right: 0;
+        background: rgba(15, 15, 15, 0.98);
+        border-bottom: 1px solid var(--glass-border);
+        padding: 1rem 0;
+        z-index: 999;
+    }
+    .nav-links.open { display: flex; }
+    .nav-links li a { display: block; padding: 0.8rem 1.5rem; font-size: 1rem; }
+
+    .mobile-menu-btn { display: block; }
+
+    /* Hero */
+    .hero-content h1 { font-size: clamp(2rem, 8vw, 3.5rem) !important; }
+    .hero-cta { flex-direction: column; gap: 0.75rem; }
+    .hero-cta .btn-primary, .hero-cta .btn-secondary { width: 100%; text-align: center; }
+    .hero-badges { flex-wrap: wrap; gap: 0.5rem; }
+
+    /* Stats row */
+    .stats-grid { grid-template-columns: 1fr 1fr !important; gap: 1rem; }
+
+    /* Course cards */
+    .courses-grid { grid-template-columns: 1fr !important; }
+    .course-card { margin-bottom: 0; }
+
+    /* Unit tabs scroll horizontally */
+    #unitTabs {
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    #unitTabs::-webkit-scrollbar { display: none; }
+    #unitTabs .tab-btn { white-space: nowrap; }
+
+    /* Modals full-screen on mobile */
+    .modal-content {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        margin: 0.5rem auto;
+        border-radius: 12px;
+    }
+    #forumModal .modal-content { height: 92vh; }
+
+    /* Forum textarea/button row */
+    #forumModal form { flex-direction: column; gap: 0.75rem; }
+    #forumModal form textarea { width: 100%; }
+    #forumModal form button { width: 100%; }
+
+    /* Footer columns */
+    .footer-grid { grid-template-columns: 1fr !important; gap: 1.5rem; }
+
+    /* Pricing grid */
+    .pricing-grid { grid-template-columns: 1fr !important; }
+
+    /* Profile modal */
+    div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 480px) {
+    .hero-content h1 { font-size: clamp(1.7rem, 7vw, 2.5rem) !important; }
+    .stats-grid { grid-template-columns: 1fr !important; }
+    .price { font-size: 2.2rem; }
+}

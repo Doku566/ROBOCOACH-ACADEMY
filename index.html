@@ -15,13 +15,18 @@
         <div class="container">
             <nav>
                 <div class="logo"><span>ROBOCOACH</span> ACADEMY</div>
-                <ul class="nav-links">
-                    <li><a href="#cursos">Cursos</a></li>
-                    <li><a href="#" onclick="openForum(); return false;">Comunidad V5</a></li>
+                <ul class="nav-links" id="navLinks">
+                    <li><a href="#cursos" onclick="closeNav()">Cursos</a></li>
+                    <li><a href="#" onclick="openForum(); closeNav(); return false;">Comunidad V5</a></li>
                     <li><a href="portal-institucional.html" style="color:var(--accent-blue)">Portal Maestros</a></li>
                 </ul>
-                <div id="userNavArea">
-                    <button class="btn-primary" onclick="showLogin()">Iniciar Sesión</button>
+                <div style="display:flex;align-items:center;gap:1rem;">
+                    <div id="userNavArea">
+                        <button class="btn-primary" onclick="showLogin()">Iniciar Sesión</button>
+                    </div>
+                    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleNav()" aria-label="Menú">
+                        &#9776;
+                    </button>
                 </div>
             </nav>
         </div>
@@ -135,5 +140,63 @@
     <script src="supabase-client.js"></script>
     
     <script src="app.js"></script>
+    <script>
+        // === SCROLL REVEAL (Phase 6 - Premium UX) ===
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+        function initReveal() {
+            // Add reveal class to key elements dynamically
+            const targets = document.querySelectorAll(
+                '.course-card, .stat-card, .price-card, section > .container > h2, .features-grid > div'
+            );
+            targets.forEach((el, i) => {
+                el.classList.add('reveal');
+                if (i % 3 === 1) el.classList.add('reveal-delay-1');
+                if (i % 3 === 2) el.classList.add('reveal-delay-2');
+                revealObserver.observe(el);
+            });
+        }
+
+        // Re-run after courses render (since they're injected dynamically)
+        const _origRenderCourses = window.renderCourses;
+        if (typeof renderCourses === 'function') {
+            const original = renderCourses;
+            window.renderCourses = function() {
+                original.apply(this, arguments);
+                setTimeout(initReveal, 100);
+            };
+        }
+        document.addEventListener('DOMContentLoaded', () => setTimeout(initReveal, 300));
+
+        // === MOBILE NAV TOGGLE ===
+        function toggleNav() {
+            const nav = document.getElementById('navLinks');
+            const btn = document.getElementById('mobileMenuBtn');
+            nav.classList.toggle('open');
+            btn.innerHTML = nav.classList.contains('open') ? '&#10005;' : '&#9776;';
+        }
+
+        function closeNav() {
+            const nav = document.getElementById('navLinks');
+            const btn = document.getElementById('mobileMenuBtn');
+            nav.classList.remove('open');
+            btn.innerHTML = '&#9776;';
+        }
+
+        // Close nav when clicking outside
+        document.addEventListener('click', (e) => {
+            const nav = document.getElementById('navLinks');
+            const btn = document.getElementById('mobileMenuBtn');
+            if (nav && btn && !nav.contains(e.target) && !btn.contains(e.target)) {
+                closeNav();
+            }
+        });
+    </script>
 </body>
 </html>
