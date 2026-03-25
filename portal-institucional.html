@@ -182,76 +182,92 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script>
-        function loadStudentsData() {
-            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-            
-            // Filter users that belong to this university (Mock filtering by domain or status inst)
-            const myStudents = usersDB.filter(u => u.status === 'inst' && (u.email.includes('@tecvictoria.edu.mx') || u.email.includes('instituto.edu')));
-            
-            // If empty, auto populate a mock dummy for demonstration
-            if(myStudents.length === 0) {
-                myStudents.push({
-                    email: 'santiago@tecvictoria.edu.mx',
-                    date: new Date().toISOString().split('T')[0],
-                    status: 'inst',
-                    profileData: { name: 'Santiago Gómez Universitario' }
-                });
+        async function loadStudentsData() {
+            const userEmail = localStorage.getItem('userEmail');
+            let userProfile = null;
+            try { userProfile = JSON.parse(localStorage.getItem('userProfile')); } catch(e){}
+
+            // 1. Strict Security Barrier
+            if (!userEmail || !userProfile || (userProfile.rango !== 'B2B' && userProfile.rango !== 'VEX INSTRUCTOR')) {
+                alert("🔒 ACCESO DENEGADO 🔒\nDebes iniciar sesión con una cuenta de Maestro Institucional (B2B) en la página principal para acceder a la analítica de alumnos.");
+                window.location.href = 'index.html';
+                return;
             }
 
-            const totalLicenses = 100;
-            const used = myStudents.length;
+            // 2. Determine Scope (Domain)
+            const domain = userEmail.split('@')[1];
+            
+            try {
+                // 3. Fetch real data from Supabase
+                const { data: myStudents, error } = await window.db
+                    .from('perfiles')
+                    .select('*')
+                    .like('email', `%@${domain}`)
+                    .neq('email', userEmail); // Exclude the teacher
 
-            document.getElementById('kpiUsed').innerText = used;
-            document.getElementById('kpiAvail').innerText = totalLicenses - used;
-
-            const tbody = document.getElementById('studentsBody');
-            tbody.innerHTML = myStudents.map((u, i) => {
-                // Get progress if any from localStorage
-                let progress = { completed: [], timeSpent: 0 };
-                try {
-                    const saved = localStorage.getItem(`progress_${u.email}`);
-                    if(saved) progress = JSON.parse(saved);
-                } catch(e) {}
+                if (error) throw error;
                 
-                const hrs = Math.floor(progress.timeSpent / 3600);
-                const mins = Math.floor((progress.timeSpent % 3600) / 60);
-                const nameStr = u.profileData && u.profileData.name ? u.profileData.name : u.email.split('@')[0];
+                // Extraer KPIs Institutional mock if needed from licencias_b2b
+                const { data: licData } = await window.db.from('licencias_b2b').select('*').limit(1);
+                const totalLicenses = licData && licData[0] ? licData[0].total_asientos : 100;
+                const used = myStudents.length;
 
-                return `
-                <tr id="row-${i}">
-                    <td>
-                        <div style="font-weight:600">${nameStr}</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted)">${u.email}</div>
-                    </td>
-                    <td><span class="status-badge status-pro">PRO (B2B)</span></td>
-                    <td style="color:#A0A0A0">${u.date || 'Reciente'}</td>
-                    <td style="font-weight:700;color:white">${progress.completed ? progress.completed.length : 0} Terminados</td>
-                    <td>${hrs}h ${mins}m</td>
-                    <td>
-                        <button class="btn-secondary" style="border-color:#ff4444;color:#ff4444" onclick="removeStudent(${i}, '${u.email}')">Revocar</button>
-                    </td>
-                </tr>
-                `;
-            }).join('');
+                document.getElementById('kpiUsed').innerText = used;
+                document.getElementById('kpiAvail').innerText = totalLicenses - used;
+
+                const tbody = document.getElementById('studentsBody');
+                
+                if (myStudents.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Aún no hay estudiantes inscritos con el dominio @${domain}</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = myStudents.map((u, i) => {
+                    const hrs = Math.floor(u.tiempo_estudiado_minutos / 60);
+                    const mins = u.tiempo_estudiado_minutos % 60;
+
+                    return `
+                    <tr id="row-${u.id}">
+                        <td>
+                            <div style="font-weight:600">${sanitize(u.nombre)}</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted)">${sanitize(u.email)}</div>
+                        </td>
+                        <td><span class="status-badge status-pro">PRO (${u.rango})</span></td>
+                        <td style="color:#A0A0A0">${new Date(u.fecha_registro).toLocaleDateString()}</td>
+                        <td style="font-weight:700;color:white">${u.modulos_terminados} Terminados</td>
+                        <td>${hrs}h ${mins}m</td>
+                        <td>
+                            <button class="btn-secondary" style="border-color:#ff4444;color:#ff4444" onclick="removeStudent('${u.id}', '${u.email}')">Revocar</button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error(err);
+                alert("Error crítico conectando con el Servidor Institucional B2B (Supabase).");
+            }
         }
 
-        function removeStudent(index, email) {
-            if(!confirm(`¿Revocar acceso institucional a ${email}? Recuperarás 1 asiento en tu contrato.`)) return;
-            // Simulated removal in UI
-            document.getElementById(`row-${index}`).style.display = 'none';
-            alert(`Licencia revocada a ${email}. Ahora cuentas con un asiento adicional para invitar a alguien más.`);
+        async function removeStudent(id, email) {
+            if(!confirm(`¿ESTÁS SEGURO? Estás a punto de revocar el acceso Premium a ${email}. Se le degradará el rango a GRATIS y consumirá sus privilegios de C++ avanzados. Recuperarás 1 asiento institucional.`)) return;
             
-            let currentUsed = parseInt(document.getElementById('kpiUsed').innerText);
-            let currentAvail = parseInt(document.getElementById('kpiAvail').innerText);
-            document.getElementById('kpiUsed').innerText = currentUsed - 1;
-            document.getElementById('kpiAvail').innerText = currentAvail + 1;
-            
-            // Soft delete on the backend (localStorage)
-            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-            let i = usersDB.findIndex(u => u.email === email);
-            if(i > -1) {
-                usersDB[i].status = 'free';
-                localStorage.setItem('admin_users', JSON.stringify(usersDB));
+            try {
+                const { error } = await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', id);
+                if (error) throw error;
+                
+                // Simulated UI update
+                document.getElementById(`row-${id}`).style.display = 'none';
+                
+                let currentUsed = parseInt(document.getElementById('kpiUsed').innerText);
+                let currentAvail = parseInt(document.getElementById('kpiAvail').innerText);
+                document.getElementById('kpiUsed').innerText = currentUsed - 1;
+                document.getElementById('kpiAvail').innerText = currentAvail + 1;
+                
+                alert(`Conexión Segura: La licencia de ${email} ha sido revocada en la Nube exitosamente.`);
+            } catch(err) {
+                console.error(err);
+                alert("Error al intentar revocar perfil en base de datos.");
             }
         }
 
