@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard | RoboCoach Academy B2B</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0A0A0A;
+            --bg-panel: #141414;
+            --vex-red: #E31B23;
+            --vex-red-hover: #ff2a33;
+            --text-main: #FFFFFF;
+            --text-muted: #A0A0A0;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-blue: #00B4D8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); min-height: 100vh; }
+
+        /* Header */
+        header {
+            background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border); padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100;
+        }
+        .logo { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 0.5rem; }
+        .logo span { color: var(--vex-red); }
+
+        /* Main Container */
+        .admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; display: grid; grid-template-columns: 250px 1fr; gap: 2rem; }
+        
+        /* Sidebar */
+        .sidebar { background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1.5rem 0; height: fit-content; }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li { padding: 0.8rem 1.5rem; cursor: pointer; transition: 0.2s; color: var(--text-muted); font-weight: 500; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .sidebar-menu li:hover { background: var(--glass-bg); color: white; }
+        .sidebar-menu li.active { background: rgba(227, 27, 35, 0.1); color: var(--vex-red); border-right: 3px solid var(--vex-red); }
+
+        /* Content Area */
+        .content-panel { background: var(--bg-panel); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        .panel-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--glass-border); }
+        .panel-header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+        .panel-header p { color: var(--text-muted); margin-top: 0.5rem; font-size: 0.9rem; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .kpi-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.5rem; }
+        .kpi-card h3 { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+        .kpi-card .value { font-size: 2.5rem; font-weight: 800; }
+        
+        /* Buttons */
+        .btn-primary { background: var(--vex-red); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .btn-primary:hover { background: var(--vex-red-hover); transform: translateY(-2px); box-shadow: 0 4px 15px rgba(227, 27, 35, 0.3); }
+        .btn-secondary { background: transparent; color: white; border: 1px solid var(--glass-border); padding: 0.6rem 1rem; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
+        .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 1rem; border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+        .data-table td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.02); font-size: 0.9rem; }
+        .data-table tbody tr:hover { background: var(--glass-bg); }
+
+        /* Status Badge */
+        .status-badge { padding: 0.3rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid transparent; }
+        .status-pro { background: rgba(0, 200, 83, 0.1); color: #00C853; border-color: rgba(0, 200, 83, 0.3); }
+
+        /* Footer Disclaimer */
+        .legal-footer { margin-top: 4rem; padding: 2rem; text-align: center; border-top: 1px solid var(--glass-border); font-size: 0.75rem; color: #666; background: #0A0A0A; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--vex-red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            ROBOCOACH <span>TEACHER</span>
+        </div>
+        <button class="btn-secondary" onclick="logout()">Salir al Inicio</button>
+    </header>
+
+    <div class="admin-container">
+        <aside class="sidebar">
+            <ul class="sidebar-menu">
+                <li id="menu-students" class="active" onclick="switchTab('students')">Mis Estudiantes</li>
+                <li id="menu-reports" onclick="switchTab('reports')">Reportes Académicos</li>
+                <li id="menu-config" onclick="switchTab('config')">Configurar Co-Maestros</li>
+            </ul>
+        </aside>
+
+        <main class="content-panel">
+            <!-- TAB: STUDENTS -->
+            <div id="tab-students" class="tab-view" style="display:block;">
+                <div class="panel-header">
+                    <div>
+                        <h1 id="uniName">Universidad Simulada (B2B)</h1>
+                        <p>Dominio Autorizado: @tecvictoria.edu.mx | Contrato Institucional</p>
+                    </div>
+                    <div>
+                        <button class="btn-primary" onclick="generateInvite()">+ Generar Link Mágico</button>
+                    </div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <h3>Licencias Contratadas</h3>
+                        <div class="value" id="kpiTotal">100</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h3>Asientos Ocupados</h3>
+                        <div class="value" style="color:#00C853" id="kpiUsed">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h3>Licencias Disponibles</h3>
+                        <div class="value" id="kpiAvail">100</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem; border-bottom:1px solid var(--glass-border); padding-bottom: 0.5rem;">Registro de Estudiantes</h3>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre y Correo</th>
+                            <th>Estado</th>
+                            <th>Fecha Ingreso</th>
+                            <th>Módulos (Progreso)</th>
+                            <th>Tiempo Estudiado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentsBody">
+                        <tr><td colspan="6" style="text-align:center;color:#666;padding:2rem;">Cargando base de estudiantes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB: REPORTS -->
+            <div id="tab-reports" class="tab-view" style="display:none;">
+                <div class="panel-header" style="border-bottom:none; margin-bottom:1rem;">
+                    <div>
+                        <h1>Reportes Académicos</h1>
+                        <p>Analítica de rendimiento y exportación de avance de los alumnos.</p>
+                    </div>
+                </div>
+                <div style="background:var(--glass-bg); padding:2rem; border-radius:12px; border:1px solid var(--glass-border); text-align:center; margin-bottom:2rem;">
+                    <div style="font-size:3rem; margin-bottom:1rem;">📊</div>
+                    <h2 style="margin-bottom:0.5rem">Descargar Sábana de Calificaciones</h2>
+                    <p style="color:var(--text-muted); margin-bottom:1.5rem; max-width:600px; margin-left:auto; margin-right:auto;">Genera un archivo CSV compatible con Excel, con todas las métricas de estudio de tus alumnos, módulos aprobados y tiempo de dedicación en el curso RoboCoach.</p>
+                    <button class="btn-secondary" style="border-color:#00B4D8; color:#00B4D8; padding:1rem 2rem; font-size:1rem; font-weight:600" onclick="exportCSV()">
+                        📥 Descargar Reporte CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB: CONFIG -->
+            <div id="tab-config" class="tab-view" style="display:none;">
+                <div class="panel-header" style="border-bottom:none; margin-bottom:1rem;">
+                    <div>
+                        <h1>Configurar Co-Maestros</h1>
+                        <p>Invita a tu staff docente a administrar este salón virtual.</p>
+                    </div>
+                </div>
+                <div style="background:rgba(227, 27, 35, 0.05); padding:2rem; border-radius:12px; border:1px solid rgba(227, 27, 35, 0.3); margin-bottom:2rem;">
+                    <h3 style="color:var(--vex-red); margin-bottom:1rem;">Restricción de Visibilidad B2B</h3>
+                    <p style="color:#CCC; line-height:1.6; margin-bottom:1rem;">Esta sección es <strong>EXCLUSIVA</strong> para los administradores del salón (Maestros titular y auxiliares). Los alumnos <strong>jamás</strong> tendrán acceso a esta interfaz ni podrán ver las métricas de sus compañeros. Ellos utilizan únicamente la plataforma de academia donde toman cursos (<code>index.html</code>).</p>
+                    <button class="btn-primary" onclick="alert('Función de enviar invitación por correo a co-maestros pronto estará disponible.')">+ Invitar Maestro Auxiliar</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="legal-footer">
+        <p><strong>Aviso Legal de Propiedad Intelectual:</strong> RoboCoach Academy ("La Plataforma") es una iniciativa de entrenamiento en software privada e independiente. NO está afiliada, aprobada, patrocinada ni respaldada de ninguna manera por VEX Robotics, Inc., Innovation First International, Inc., o el Robotics Education & Competition (REC) Foundation. VEX®, VEX V5™, VEX IQ™, y VEXcode™ son marcas comerciales registradas de sus respectivos propietarios. Las licencias institucionales adquiridas aquí otorgan acceso exclusivo al material didáctico digital provisto por esta plataforma y NO otorgan licencias oficiales de hardware o software robótico originario de IFI.</p>
+        <p style="margin-top:0.5rem">&copy; 2026 RoboCoach Learning Systems. Diseñado independientemente para estudiantes C++.</p>
+    </div>
+
+    <script>
+        function loadStudentsData() {
+            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
+            
+            // Filter users that belong to this university (Mock filtering by domain or status inst)
+            const myStudents = usersDB.filter(u => u.status === 'inst' && (u.email.includes('@tecvictoria.edu.mx') || u.email.includes('instituto.edu')));
+            
+            // If empty, auto populate a mock dummy for demonstration
+            if(myStudents.length === 0) {
+                myStudents.push({
+                    email: 'santiago@tecvictoria.edu.mx',
+                    date: new Date().toISOString().split('T')[0],
+                    status: 'inst',
+                    profileData: { name: 'Santiago Gómez Universitario' }
+                });
+            }
+
+            const totalLicenses = 100;
+            const used = myStudents.length;
+
+            document.getElementById('kpiUsed').innerText = used;
+            document.getElementById('kpiAvail').innerText = totalLicenses - used;
+
+            const tbody = document.getElementById('studentsBody');
+            tbody.innerHTML = myStudents.map((u, i) => {
+                // Get progress if any from localStorage
+                let progress = { completed: [], timeSpent: 0 };
+                try {
+                    const saved = localStorage.getItem(`progress_${u.email}`);
+                    if(saved) progress = JSON.parse(saved);
+                } catch(e) {}
+                
+                const hrs = Math.floor(progress.timeSpent / 3600);
+                const mins = Math.floor((progress.timeSpent % 3600) / 60);
+                const nameStr = u.profileData && u.profileData.name ? u.profileData.name : u.email.split('@')[0];
+
+                return `
+                <tr id="row-${i}">
+                    <td>
+                        <div style="font-weight:600">${nameStr}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted)">${u.email}</div>
+                    </td>
+                    <td><span class="status-badge status-pro">PRO (B2B)</span></td>
+                    <td style="color:#A0A0A0">${u.date || 'Reciente'}</td>
+                    <td style="font-weight:700;color:white">${progress.completed ? progress.completed.length : 0} Terminados</td>
+                    <td>${hrs}h ${mins}m</td>
+                    <td>
+                        <button class="btn-secondary" style="border-color:#ff4444;color:#ff4444" onclick="removeStudent(${i}, '${u.email}')">Revocar</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        function removeStudent(index, email) {
+            if(!confirm(`¿Revocar acceso institucional a ${email}? Recuperarás 1 asiento en tu contrato.`)) return;
+            // Simulated removal in UI
+            document.getElementById(`row-${index}`).style.display = 'none';
+            alert(`Licencia revocada a ${email}. Ahora cuentas con un asiento adicional para invitar a alguien más.`);
+            
+            let currentUsed = parseInt(document.getElementById('kpiUsed').innerText);
+            let currentAvail = parseInt(document.getElementById('kpiAvail').innerText);
+            document.getElementById('kpiUsed').innerText = currentUsed - 1;
+            document.getElementById('kpiAvail').innerText = currentAvail + 1;
+            
+            // Soft delete on the backend (localStorage)
+            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
+            let i = usersDB.findIndex(u => u.email === email);
+            if(i > -1) {
+                usersDB[i].status = 'free';
+                localStorage.setItem('admin_users', JSON.stringify(usersDB));
+            }
+        }
+
+        function generateInvite() {
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            alert(`Link Mágico de Invitación Generado: \n\nhttps://robocoach.academy/join/${code}\n\nCopia y envía este enlace por WhatsApp/Correo a tus estudiantes para que se auto-inscriban. Consumirán 1 licencia de las disponibles.`);
+        }
+
+        function logout() {
+            window.location.href = 'index.html';
+        }
+
+        function exportCSV() {
+            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
+            const myStudents = usersDB.filter(u => u.status === 'inst' && (u.email.includes('@tecvictoria.edu.mx') || u.email.includes('instituto.edu')));
+            
+            let csvContent = "data:text/csv;charset=utf-8,Nombre,Correo,Estado,ModulosCompletados,MinutosEstudiados\n";
+            
+            myStudents.forEach(u => {
+                let progress = { completed: [], timeSpent: 0 };
+                try {
+                    const saved = localStorage.getItem(`progress_${u.email}`);
+                    if(saved) progress = JSON.parse(saved);
+                } catch(e) {}
+                
+                const nameStr = u.profileData && u.profileData.name ? u.profileData.name : u.email.split('@')[0];
+                const mods = progress.completed ? progress.completed.length : 0;
+                const mins = Math.floor(progress.timeSpent / 60);
+                
+                csvContent += `${nameStr},${u.email},${u.status},${mods},${mins}\n`;
+            });
+            
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "reporte_estudiantes.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-view').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.sidebar-menu li').forEach(l => l.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).style.display = 'block';
+            document.getElementById('menu-' + tabId).classList.add('active');
+        }
+
+        window.onload = loadStudentsData;
+    </script>
+</body>
+</html>

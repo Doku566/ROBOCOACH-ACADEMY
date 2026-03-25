@@ -1,0 +1,271 @@
+// VEX Academy Curriculum — Part 3: Units 7-11 (Módulos 55-115)
+const CURRICULUM_P3 = [
+// ===== UNIDAD 7: SENSORES 3-WIRE (10) =====
+{id:55,unit:7,unitTitle:'Sensores 3-Wire',title:'Bumper y Limit Switch',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Interruptores táctiles digitales para posición home y detección de contacto.',
+theory:`<p>El <strong>Bumper Switch</strong> devuelve <code>true</code> cuando está presionado. Usa <code>Brain.ThreeWirePort.A</code> para declararlo. Ideal para posición home de mecanismos y parada de emergencia.</p>`,
+code:`bumper Bumper = bumper(Brain.ThreeWirePort.A);\nlimit  Limit  = limit(Brain.ThreeWirePort.B);\nvoid loop() {\n  if(Bumper.pressing()) Motor1.stop(hold);\n  if(Limit.pressing())  Lift.stop(brake);\n}`,
+api_ref:'vex::bumper — pressing() | vex::limit — pressing()',exercise:'Usa el bumper como home sensor: mueve el brazo hacia atrás hasta que toque, luego resetea el encoder a 0.'},
+
+{id:56,unit:7,unitTitle:'Sensores 3-Wire',title:'Line Follower — Seguimiento de Línea',level:'Intermedio',type:'lesson',free:false,duration:25,
+desc:'Detecta líneas de contraste en el campo para navegación autónoma básica.',
+theory:`<p>El <strong>Line Sensor</strong> devuelve valores 0-4095 (brillo reflejado). Coloca 2-3 sensores en la parte frontal del robot. Cuando el sensor central ve línea oscura (~800), el robot debe ir recto.</p>`,
+code:`line LineIzq = line(Brain.ThreeWirePort.C);\nline LineDer = line(Brain.ThreeWirePort.D);\nvoid seguirLinea() {\n  int izq = LineIzq.reflectivity();\n  int der = LineDer.reflectivity();\n  int error = izq - der;\n  Izq.spin(fwd, 60 + error*0.1, pct);\n  Der.spin(fwd, 60 - error*0.1, pct);\n}`,
+api_ref:'vex::line — reflectivity()',exercise:'Calibra los umbrales de tu sensor de línea para el piso y línea blanca de tu field. Programa seguimiento de línea a 40cm/s.'},
+
+{id:57,unit:7,unitTitle:'Sensores 3-Wire',title:'Potenciómetro Analógico',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Posición angular analógica 0-250° para mecanismos de rango limitado.',
+theory:`<p>El <code>potentiometer</code> (versión 3-wire) retorna el ángulo como valor 0-4095 (ADC). Usa <code>potentiometerV2</code> Smart Port si quieres directamente en grados. Ambos dan posición absoluta al encender.</p>`,
+code:`potentiometer Pot = potentiometer(Brain.ThreeWirePort.G);\nvoid control() {\n  double angulo = Pot.value(pct);  // 0-100%\n  double grados = angulo * 2.5;    // mapa 0-250°\n  double error  = 90.0 - grados;\n  Brazo.spin(fwd, 2.0 * error, pct);\n}`,
+api_ref:'vex::potentiometer — value(pct)',exercise:'Calibra el potenciómetro para conocer los valores en 0°, 90° y 180°. Mapea linearmente a grados.'},
+
+{id:58,unit:7,unitTitle:'Sensores 3-Wire',title:'Sonar Ultrasónico',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Mide distancias de 2cm a 300cm con pulsos de ultrasonido.',
+theory:`<p>El <strong>Sonar Sensor</strong> (3-wire) usa dos puertos adyacentes: salida (trigger) y entrada (echo). Mide distancia por tiempo de vuelo del sonido. Más ruidoso que el Distance Sensor láser, pero más barato.</p>`,
+code:`sonar SensorSon = sonar(Brain.ThreeWirePort.E);\nvoid medir() {\n  double dist_mm = SensorSon.distance(mm);\n  if(dist_mm > 0) { // -1 si no hay objeto\n    Brain.Screen.printAt(10,50,"Dist: %.0fmm",dist_mm);\n  }\n}`,
+api_ref:'vex::sonar — distance(mm), distance(inches)',exercise:'Compara las lecturas del Sonar vs. el Distance Sensor láser a 5, 20, 50, 100 y 200cm. Documenta diferencias de precisión.'},
+
+{id:59,unit:7,unitTitle:'Sensores 3-Wire',title:'Encoder Cuadratura (Shaft Encoder)',level:'Intermedio',type:'lesson',free:false,duration:25,
+desc:'El encoder de 360° de resolución para tracking wheels y ejes externos.',
+theory:`<p>El <strong>Quadrature Encoder</strong> usa dos canales (A y B) para detectar dirección y posición. Se declara con dos puertos adyacentes. Esencial para ruedas de odometría (tracking wheels) externas al drivetrain.</p>`,
+code:`encoder Enc = encoder(Brain.ThreeWirePort.C); // C+D automático\nvoid odometria() {\n  double ticks = Enc.value();        // ticks acumulados\n  double rev   = ticks / 360.0;      // 360 ticks/rev\n  double dist  = rev * M_PI * 60.0;  // rueda 60mm\n  Enc.resetRotation();\n}`,
+api_ref:'vex::encoder — value(), resetRotation()',exercise:'Monta el shaft encoder en una rueda pasiva de tracking. Calibra cuántos ticks = 1cm. Compara vs. el encoder del motor.'},
+
+{id:60,unit:7,unitTitle:'Sensores 3-Wire',title:'digital_out y digital_in — Control Neumático',level:'Intermedio',type:'lesson',free:false,duration:25,
+desc:'Controla solenoides neumáticos y lee señales digitales externas.',
+theory:`<p><code>digital_out</code> controla un pin 3-wire como salida (5V). Perfecto para activar solenoides de neumática de simple o doble efecto. <code>digital_in</code> lee señales externas de 0/5V.</p>`,
+code:`digital_out Solenoide  = digital_out(Brain.ThreeWirePort.H);\ndigital_in  SenalExt   = digital_in(Brain.ThreeWirePort.A);\nvoid actualizarNeumatica(bool extender) {\n  Solenoide.set(extender); // true=extender, false=retraer\n}\nbool leerSenal() {\n  return SenalExt.value(); // true/false\n}`,
+api_ref:'vex::digital_out — set(bool) | vex::digital_in — value()',exercise:'Conecta un solenoide neumático y programa un toggle con el botón X del control. Agrega indicador visual en el Brain Screen.'},
+
+{id:61,unit:7,unitTitle:'Sensores 3-Wire',title:'analog_in — Lectura de Sensores Analógicos',level:'Intermedio',type:'lesson',free:false,duration:20,
+desc:'Interfaz con sensores analógicos de 0-5V para electrónica personalizada.',
+theory:`<p><code>analog_in</code> lee voltaje en el rango 0-5V y lo convierte a un valor 0-4095 (12 bits ADC). Útil para sensores personalizados, galgas extensométricas o sensores de terceros compatibles con 5V.</p>`,
+code:`analog_in SensorA = analog_in(Brain.ThreeWirePort.A);\nvoid leerAnalogico() {\n  int raw   = SensorA.value(); // 0-4095\n  double pct = raw / 4095.0 * 100.0;\n  double volt= raw / 4095.0 * 5.0;\n  Brain.Screen.printAt(10,50,"RAW:%d %.2fV %.0f%%",raw,volt,pct);\n}`,
+api_ref:'vex::analog_in — value()',exercise:'Conecta un sensor analógico externo (ej. LDR con divisor de voltaje) vía analog_in. Calibra la lectura y úsala para un comportamiento reactivo del robot.'},
+
+{id:62,unit:7,unitTitle:'Sensores 3-Wire',title:'pwm_out — Control de Servos Genéricos',level:'Avanzado',type:'lesson',free:false,duration:25,
+desc:'Controla servos RC estándar y controladores de motor externos con PWM.',
+theory:`<p><code>pwm_out</code> genera una señal PWM (Pulse Width Modulation) de 50Hz compatible con servos RC estándar. El rango de posición es -127 a 127, mapeado a 1ms-2ms de pulso.</p>`,
+code:`pwm_out ServoCam = pwm_out(Brain.ThreeWirePort.F);\nvoid posicionarCamara(int pos) {\n  // pos: -127 (izquierda) a 127 (derecha)\n  pos = fmax(-127, fmin(127, pos)); // clamp\n  ServoCam.state(pos, pct);\n}\nvoid barridoPanoramico() {\n  for(int p = -100; p <= 100; p += 5) {\n    posicionarCamara(p); wait(50, msec);\n  }\n}`,
+api_ref:'vex::pwm_out — state(pos, pct)',exercise:'Monta un servo para orientar el Vision Sensor horizontalmente. Programa el Robot para girar el servo hacia el objeto detectado por el Vision Sensor.'},
+
+{id:63,unit:7,unitTitle:'Sensores 3-Wire',title:'Sensor de Luz Analógico',level:'Básico',type:'lesson',free:false,duration:15,
+desc:'Detección de intensidad lumínica con el sensor de luz de 3 pines.',
+theory:`<p>El <code>light</code> de 3-wire mide la intensidad de luz reflejada (diferente al <code>lightV2</code> Smart Port). Retorna un porcentaje de 0-100. Útil para line-following y detección simple de presencia.</p>`,
+code:`light SensorLuz = light(Brain.ThreeWirePort.B);\nvoid mostrarLuz() {\n  double bril = SensorLuz.reflectivity(); // 0-100%\n  bool   oscuro = bril < 20;\n  Brain.Screen.printAt(10,50,"Luz: %.0f%% %s",\n    bril, oscuro?"OSCURO":"ILUMINADO");\n}`,
+api_ref:'vex::light — reflectivity()',exercise:'Usa el sensor de luz para el umbral de detección de línea blanca. Fine-tune el umbral colocando el sensor en la línea y en el piso alternadamente.'},
+
+{id:64,unit:7,unitTitle:'Sensores 3-Wire',title:'Examen Unidad 7 — Sensores 3-Wire',level:'Básico',type:'exam',free:false,duration:10,
+desc:'Verifica el dominio de los sensores del puerto 3-wire del Brain V5.',
+exam:[
+{q:'¿Cuántos ticks por revolución tiene el Shaft Encoder (Quad Encoder)?',options:['180','360','720','1800'],correct:1},
+{q:'Para activar un solenoide neumático se usa:',options:['analog_in','digital_out','pwm_out','bumper'],correct:1},
+{q:'El sonar mide distancia por:',options:['Láser','Tiempo de vuelo de sonido','Infrarrojo','Campo magnético'],correct:1},
+{q:'¿Qué retorna analog_in.value() para 2.5V de entrada?',options:['50','2047','4095','100'],correct:1},
+{q:'El rango de posición de pwm_out.state() es:',options:['0-255','-127 a 127','0-100','0-360'],correct:1},
+],code:'',api_ref:''},
+
+// ===== UNIDAD 8: COMPETENCIA Y CAMPO (8) =====
+{id:65,unit:8,unitTitle:'Control de Competencia',title:'Clase competition — Registro de Funciones',level:'Básico',type:'lesson',free:false,duration:25,
+desc:'La clase competition es el puente entre el Field Control System y tu código.',
+theory:`<p>La clase <code>competition</code> permite registrar las 3 funciones del robot: <code>pre_auton</code>, <code>autonomous</code> y <code>usercontrol</code>. El Field Control System (FCS) las llama automáticamente en el momento correcto.</p>`,
+code:`competition Competencia;\nvoid pre_auton() { Imu.calibrate(); while(Imu.isCalibrating()){wait(100,msec);} }\nvoid autonomous() { /* puntuar */ }\nvoid usercontrol() { while(true){ /* drive */ wait(20,msec); } }\nint main() {\n  Competencia.autonomous(autonomous);\n  Competencia.drivercontrol(usercontrol);\n  Competencia.bConcurrentWithDriverControl = true;\n  while(true) { wait(100,msec); }\n}`,
+api_ref:'vex::competition — autonomous(fn), drivercontrol(fn)',exercise:'Estructura tu código completo con la clase competition. Verifica que pre_auton corre antes del autónomo y usercontrol en el período de driver.'},
+
+{id:66,unit:8,unitTitle:'Control de Competencia',title:'pre_auton — Calibración Pre-Campaña',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Optimiza la fase de calibración para estar listo en los primeros 30 segundos.',
+theory:`<p><code>pre_auton()</code> corre cuando se conecta al Field Control ANTES del inicio. Úsala para: calibrar IMU, mostrar selector de estrategia autónoma en pantalla táctil, verificar sensores y cargar configuración de SD.</p>`,
+code:`void pre_auton() {\n  // 1. Calibrar IMU (crítico)\n  Imu.calibrate();\n  while (Imu.isCalibrating()) { wait(50, msec); }\n  // 2. Selector de autónomo\n  Brain.Screen.setPenColor(white);\n  seleccion = elegirAuron(); // función con toque\n  // 3. Verificación de batería\n  if(Brain.Battery.capacity(pct) < 60)\n    Brain.Screen.printAt(10,200,"¡CARGA BATERÍA!");\n}`,
+api_ref:'vex::competition::pre_auton | vex::inertial::calibrate()',exercise:'Diseña un pre_auton completo: IMU calibra, pantalla muestra selector de 3 autónomos, confirmación verbal del capitán al jugador.'},
+
+{id:67,unit:8,unitTitle:'Control de Competencia',title:'Field Control System — Cómo Funciona',level:'Intermedio',type:'lesson',free:false,duration:20,
+desc:'Entiende el sistema de control de campo de VEX para anticipar señales.',
+theory:`<p>El <strong>FCS (Field Control System)</strong> envía señales al V5 Brain vía el cable de competencia. Controla cuándo corre cada fase. Señales: disable (todos parados), autonomous (15s) y driver control (105s).</p><p>Para probar localmente usa el <strong>VEX Switch Box</strong> o simula con el código:</p>`,
+code:`// Simular transición de fases sin FCS\nvoid simularCampo() {\n  // Simular pre_auton\n  pre_auton();\n  wait(3, sec);\n  // Simular autónomo\n  autonomous();\n  wait(16, sec);\n  // Simular driver control\n  usercontrol();\n}`,
+api_ref:'VEX Competition — FCS protocol',exercise:'Practica la transición completa pre_auton → auton → driver usando el Switch Box (o la simulación). Mide el tiempo total que tarda tu calibración de IMU.'},
+
+{id:68,unit:8,unitTitle:'Control de Competencia',title:'Gestión del Tiempo Autónomo — 15 Segundos',level:'Intermedio',type:'lesson',free:false,duration:25,
+desc:'Maximiza puntos en 15 segundos con estructura de autónomo por fases.',
+theory:`<p>15 segundos son muy pocos. La estrategia de autónomo por fases prioriza las acciones de mayor puntaje primero. Si algo falla, el fallback garantiza al menos 1 punto.</p><ul><li>Fase 1 (0-4s): Acción de mayor puntaje</li><li>Fase 2 (4-9s): Acción secundaria</li><li>Fase 3 (9-13s): Bonus si hay tiempo</li></ul>`,
+code:`void autonomous() {\n  Brain.Timer.reset();\n  // FASE 1: Acción prioritaria\n  moverYPuntar(); // tu función\n  if(Brain.Timer.time(sec) > 10) return; // timeout\n  // FASE 2: Si hay tiempo\n  recogerPieza();\n  if(Brain.Timer.time(sec) > 13) return;\n  // FASE 3: Bonus\n  zonaBonus();\n}`,
+api_ref:'vex::brain::timer — time(sec)',exercise:'Graba en video tu autónomo actual. Analiza fotograma a fotograma los 15 segundos. Identifica los 3 segundos donde el robot no hace nada útil y optimízalos.'},
+
+{id:69,unit:8,unitTitle:'Control de Competencia',title:'Skills Challenge — Autónomo de 60 Segundos',level:'Avanzado',type:'lesson',free:false,duration:35,
+desc:'El Skills Run permite 60 segundos de autónomo puro. Estrategia diferente.',
+theory:`<p>El <strong>Skills Challenge</strong> (Programming Skills) da 60 segundos de autónomo puro. Todos los equipos en el mundo corren el mismo field. El ranking mundial es por puntaje de Skills.</p><p>Diferencia clave: más tiempo = más repeticiones, más recuperación de errores, uso de GPS para reposicionamiento absoluto.</p>`,
+code:`void skillsAutonomo() {\n  Brain.Timer.reset();\n  // Ciclo de recolección (repetir mientras haya tiempo)\n  while(Brain.Timer.time(sec) < 55) {\n    irAPieza();\n    recoger();\n    irAMeta();\n    depositar();\n    // Reposicionamiento con GPS si está disponible\n    if(SensorGPS.quality() > 80) {\n      corregirPosicion();\n    }\n  }\n}`,
+api_ref:'VEX Skills Challenge — autonomous 60s | vex::gps — quality()',exercise:'Diseña una ruta de Skills que maximice piezas recogidas en 60s. Documenta: tiempo por ciclo, número de ciclos posibles y puntaje objetivo.'},
+
+{id:70,unit:8,unitTitle:'Control de Competencia',title:'Checklist Técnico Pre-Competencia',level:'Intermedio',type:'lesson',free:false,duration:20,
+desc:'Protocolo infalible antes de subir al campo para evitar fallas costosas.',
+theory:`<h3>Checklist de 10 Puntos</h3><ol><li>Firmware actualizado (Brain + Motores)</li><li>Batería &gt; 70%</li><li>IMU calibra en menos de 3s</li><li>Todos los puertos responden</li><li>Autónomo probado 3 veces consecutivas</li><li>Código en GitHub (commit del día)</li><li>Autónomo de respaldo listo en Slot 2</li><li>Controller emparejado</li><li>Copiloto confirmado su rol</li><li>Estrategia del partido revisada en 1 minuto</li></ol>`,
+code:`void checklistRapido() {\n  bool todo_ok = true;\n  if(Brain.Battery.capacity(pct) < 70) todo_ok = false;\n  if(Motor1.temperature(celsius) > 50) todo_ok = false;\n  Brain.Screen.printAt(10,50,\n    todo_ok ? "SISTEMAS OK" : "¡REVISAR!");\n  Brain.Screen.setPenColor(todo_ok ? green : red);\n}`,
+api_ref:'Protocolo de competencia VEX',exercise:'Ejecuta el checklist antes de cada sesión de práctica durante 1 semana. Registra qué items fallan más frecuentemente y crea soluciones preventivas.'},
+
+{id:71,unit:8,unitTitle:'Control de Competencia',title:'Examen Unidad 8 — Competencia',level:'Básico',type:'exam',free:false,duration:10,
+desc:'Verifica tu preparación para el entorno real de competencia VEX.',
+exam:[
+{q:'¿Cuántos segundos dura el período autónomo en VEX?',options:['10','15','25','30'],correct:1},
+{q:'¿Cuántos segundos dura el Skills Autónomo?',options:['15','30','60','90'],correct:2},
+{q:'¿Cuándo se ejecuta pre_auton()?',options:['Al inicio del autónomo','Antes de conectarse al FCS','Cuando se conecta al FCS, antes del inicio','Durante driver control'],correct:2},
+{q:'¿En qué slot se recomienda poner el autónomo de respaldo?',options:['Slot 1','Slot 2','Slot 7','Slot 8'],correct:1},
+],code:'',api_ref:''},
+
+// ===== UNIDAD 9: PROGRAMACIÓN AVANZADA (15) =====
+{id:72,unit:9,unitTitle:'Algoritmos Avanzados',title:'Multitareas con vex::task',level:'Avanzado',type:'lesson',free:false,duration:35,
+desc:'Ejecuta control de tracción y monitoreo de sensores simultáneamente con threads.',
+theory:`<p>La clase <code>task</code> del V5 permite paralelismo real. Usa threads para: telemetría en background, control de temperatura independiente, actualización del HUD sin bloquear el control.</p>`,
+code:`// Thread: monitorear temperatura en background\nint tareTempMonitor() {\n  while(true) {\n    if(Motor1.temperature(celsius) > 52)\n      Control.rumble("-");\n    wait(500, msec);\n  }\n  return 0;\n}\ntask TareaTemp;\nvoid main() {\n  TareaTemp = task(tareTempMonitor);\n  // Loop principal de control\n  while(true) { /* drive */ wait(20,msec); }\n}`,
+api_ref:'vex::task — constructor(fn), stop(), suspend(), resume()',exercise:'Implementa un thread de monitoreo que corra independientemente del control. El thread solo vibra el control si temperatura > 52°C, sin interrumpir al piloto.'},
+
+{id:73,unit:9,unitTitle:'Algoritmos Avanzados',title:'Mutex y Sincronización de Threads',level:'Experto',type:'lesson',free:false,duration:30,
+desc:'Evita race conditions cuando múltiples threads acceden a los mismos datos.',
+theory:`<p>Cuando dos threads leen/escriben la misma variable simultáneamente hay un <strong>race condition</strong>. El <code>mutex</code> bloquea el acceso para que solo un thread use el recurso a la vez.</p>`,
+code:`mutex MutexPos;\ndouble posX = 0, posY = 0;\n// Thread 1: actualizar posición\nvoid actualizarPos() {\n  MutexPos.lock();\n  posX = SensorGPS.xPosition(mm);\n  posY = SensorGPS.yPosition(mm);\n  MutexPos.unlock();\n}\n// Thread 2: leer posición (seguro)\nvoid leerPos() {\n  MutexPos.lock();\n  double x = posX, y = posY;\n  MutexPos.unlock();\n  Brain.Screen.printAt(10,50,"X:%.0f Y:%.0f",x,y);\n}`,
+api_ref:'vex::mutex — lock(), unlock()',exercise:'Crea un sistema con 2 threads compartiendo una variable de conteo de piezas. Sin mutex documenta el bug. Con mutex confirma la corrección.'},
+
+{id:74,unit:9,unitTitle:'Algoritmos Avanzados',title:'PID Completo — Tuning y Estabilidad',level:'Avanzado',type:'lesson',free:false,duration:50,
+desc:'Domina el controlador PID con anti-windup, feedforward y métodos de tuning.',
+theory:`<h3>PID con Anti-Windup</h3><p>El término Integral acumula infinitamente si el robot no puede llegar al objetivo (ej: contra una pared). El <strong>anti-windup</strong> limita la integral para evitar comportamiento explosivo al liberar el obstáculo.</p>`,
+code:`double Kp=0.8, Ki=0.001, Kd=4.0;\ndouble integral=0, prevError=0;\nvoid pidGiro(double target, double velMax) {\n  double error, vel;\n  do {\n    error = target - Imu.heading(degrees);\n    if(error>180) error-=360; if(error<-180) error+=360;\n    integral = fmax(-100, fmin(100, integral+error)); // anti-windup\n    double deriv = error - prevError;\n    vel = Kp*error + Ki*integral + Kd*deriv;\n    vel = fmax(-velMax, fmin(velMax, vel));\n    Izq.spin(fwd,  vel, pct);\n    Der.spin(fwd, -vel, pct);\n    prevError = error;\n    wait(10, msec);\n  } while(fabs(error) > 1.5);\n  Izq.stop(brake); Der.stop(brake);\n  integral = 0; prevError = 0; // reset\n}`,
+api_ref:'Teoría de control — PID con anti-windup',exercise:'Tunea Kp, Ki y Kd para girar 180° con overshoot < 3° y tiempo < 1.5s. Prueba 10 veces y registra consistencia. Kp ideal para la mayoría: 0.5-1.2.'},
+
+{id:75,unit:9,unitTitle:'Algoritmos Avanzados',title:'Odometría — Tracking de Posición 2D',level:'Experto',type:'lesson',free:false,duration:55,
+desc:'Calcula posición XY del robot a 50Hz usando tracking wheels y el IMU.',
+theory:`<p>La odometría integra pequeños desplazamientos (<em>delta</em>) de encoders de ruedas pasivas para estimar la posición 2D. El IMU corrige el ángulo (elimina deriva de heading).</p>`,
+code:`struct Pose { double x=0, y=0, theta=0; } bot;\nrotation TrackL = rotation(PORT11);\nrotation TrackR = rotation(PORT12);\nconst double R = 60.0; // radio rueda mm\nconst double MM_DEG = M_PI*R/180.0;\nvoid updateOdom() {\n  static double pL=0, pR=0;\n  double L=TrackL.position(degrees)*MM_DEG;\n  double R2=TrackR.position(degrees)*MM_DEG;\n  double dL=L-pL, dR=R2-pR; pL=L; pR=R2;\n  double ds = (dL+dR)/2.0;\n  bot.theta = Imu.heading(degrees); // IMU para ángulo\n  double th  = bot.theta*M_PI/180.0;\n  bot.x += ds*cos(th);\n  bot.y += ds*sin(th);\n}`,
+api_ref:'vex::rotation — position(degrees) | Algoritmo de odometría 2D',exercise:'Implementa el sistema de odometría completo. Mueve el robot en un cuadrado de 60cm y mide el error de retorno al origen. Objetivo: <3cm de error.'},
+
+{id:76,unit:9,unitTitle:'Algoritmos Avanzados',title:'Pure Pursuit — Seguimiento de Trayectorias Curvas',level:'Experto',type:'lesson',free:false,duration:55,
+desc:'Algoritmo de path-following que permite movimiento curvado continuo sin detenerse.',
+theory:`<p><strong>Pure Pursuit</strong> calcula un punto objetivo (lookahead) en la ruta a una distancia fija del robot. El robot siempre gira hacia ese punto, creando curvas suaves y reduciendo el tiempo de autónomo.</p>`,
+code:`struct Punto { double x, y; };\nconst Punto RUTA[] = {{0,0},{500,0},{500,500},{0,500}};\nconst int N_PUNTOS = 4;\nconst double LOOKAHEAD = 150; // mm\nint idxActual = 0;\nvoid purePursuit() {\n  double dx = RUTA[idxActual].x - bot.x;\n  double dy = RUTA[idxActual].y - bot.y;\n  double dist = sqrt(dx*dx+dy*dy);\n  if(dist < LOOKAHEAD && idxActual < N_PUNTOS-1)\n    idxActual++;\n  double angTarget = atan2(dy,dx)*180/M_PI;\n  double errAng = angTarget - bot.theta;\n  double velL = 60 - errAng*0.5;\n  double velR = 60 + errAng*0.5;\n  Izq.spin(fwd, velL, pct);\n  Der.spin(fwd, velR, pct);\n}`,
+api_ref:'Algoritmo Pure Pursuit | Odometría + waypoints',exercise:'Implementa Pure Pursuit para navegar 4 waypoints formando una L. El robot debe completar la ruta sin detenerse. Compara tiempo vs. autónomo de parar-girar-avanzar.'},
+
+{id:77,unit:9,unitTitle:'Algoritmos Avanzados',title:'Lógica Difusa para Control Reactivo',level:'Experto',type:'lesson',free:false,duration:45,
+desc:'Implementa un controlador de Lógica Difusa para comportamiento adaptativo del robot.',
+theory:`<p>La <strong>Lógica Difusa</strong> (Fuzzy Logic) permite reglas lingüísticas como <em>"si el objeto está MUY_CERCA, velocidad MUY_LENTA"</em>. Es más natural que los thresholds abruptos del control binario.</p>`,
+code:`// Función de membresía triangular\ndouble memb(double x, double a, double b, double c){\n  if(x<=a||x>=c) return 0;\n  if(x<=b) return (x-a)/(b-a);\n  return (c-x)/(c-b);\n}\nvoid controlDifuso(double dist_mm) {\n  // Conjuntos difusos de distancia\n  double cerca  = memb(dist_mm,   0, 100, 250);\n  double medio  = memb(dist_mm, 100, 350, 600);\n  double lejos  = memb(dist_mm, 350, 700,1200);\n  // Velocidad resultante (defuzzificación centroide)\n  double vel = (cerca*20 + medio*60 + lejos*100)\n             / (cerca   + medio   + lejos + 0.001);\n  Izq.spin(fwd, vel, pct);\n  Der.spin(fwd, vel, pct);\n}`,
+api_ref:'Lógica Difusa — funciones de membresía y defuzzificación centroide',exercise:'Implementa un controlador difuso de velocidad basado en la distancia frontal (Distance Sensor). El robot debe desacelerar suavemente al acercarse a una pared y detenerse a 10cm.'},
+
+{id:78,unit:9,unitTitle:'Algoritmos Avanzados',title:'Introducción a Redes Neuronales en VEX',level:'Experto',type:'lesson',free:false,duration:50,
+desc:'Implementa una red neuronal básica (feedforward) para clasificación de objetos.',
+theory:`<p>Una red neuronal simple (1 capa oculta) puede clasificar entradas de sensores en acciones. En VEX se usa para: identificar piezas por color+tamaño, predecir trayectorias, o seleccionar estrategia autónoma.</p>`,
+code:`// Red neuronal 2-2-1: 2 entradas, 2 ocultas, 1 salida\ndouble sigmoid(double x){ return 1.0/(1.0+exp(-x)); }\n// Pesos entrenados offline (aquí hardcoded)\ndouble w1[2][2]={{0.5,-0.3},{0.8,0.1}};\ndouble w2[2]={0.7,-0.4};\ndouble b1[2]={0.1,0.2}, b2=0.05;\ndouble predecir(double d, double h) { // dist, hue\n  double h1[2];\n  for(int i=0;i<2;i++)\n    h1[i]=sigmoid(w1[i][0]*d+w1[i][1]*h+b1[i]);\n  return sigmoid(w2[0]*h1[0]+w2[1]*h1[1]+b2);\n}`,
+api_ref:'Redes Neuronales — feedforward + sigmoid | Entrenamiento offline necesario',exercise:'Entrena (en Python/Excel) una red para clasificar 2 colores de piezas con datos del Optical Sensor (hue + brillo). Importa los pesos al código VEX y valida la precisión.'},
+
+{id:79,unit:9,unitTitle:'Algoritmos Avanzados',title:'Optimización de Memoria y CPU',level:'Avanzado',type:'lesson',free:false,duration:30,
+desc:'Escribe código eficiente que no desperdicia los recursos del procesador ARM.',
+theory:`<p>El Brain V5 tiene 128KB de RAM para código + datos. Consejos de optimización:</p><ul><li><code>float</code> en vez de <code>double</code> cuando no necesitas 15 dígitos de precisión (ahorra memoria)</li><li>Evita <code>string</code> concatenation en loops (usa <code>printf</code>-style)</li><li>Precalcula constantes fuera del loop (<code>const</code>)</li><li>Mide tiempo de ciclo y elimina funciones lentas del path crítico</li></ul>`,
+code:`// MAL: cálculo repetido en cada ciclo\nvoid loop_malo(){\n  double c = M_PI * 101.6; // re-calcula cada vez!\n  double dist = encoder/360.0 * c;\n}\n// BIEN: constante precalculada\nconst double CIRCUNF = M_PI * 101.6; // una vez\nvoid loop_bueno(){\n  double dist = encoder/360.0 * CIRCUNF; // eficiente\n}`,
+api_ref:'Optimización C++ — const, float vs double, evitar allocaciones dinámicas',exercise:'Perfila tu código con el Brain Timer. Identifica las 3 funciones más lentas. Optimiza cada una. Objetivo: ciclo completo < 8ms.'},
+
+{id:80,unit:9,unitTitle:'Algoritmos Avanzados',title:'Depuración Avanzada — Logging y Debug Output',level:'Intermedio',type:'lesson',free:false,duration:25,
+desc:'Técnicas profesionales para encontrar y eliminar bugs en código de competencia.',
+theory:`<p>Estrategias de debug para VEX:</p><ul><li><strong>Brain Screen</strong>: valores en tiempo real del sensor/variable sospechosa</li><li><strong>SD Logging</strong>: capturar datos durante autónomo para analizar post-carrera</li><li><strong>Controller screen</strong>: valores críticos durante driver control</li><li><strong>printf a consola</strong>: visible en VS Code durante pruebas con USB</li></ul>`,
+code:`// Debug condicional — comentar para competencia\n#define DEBUG_MODE true\nvoid debugPrint(const char* fmt, ...) {\n  if(!DEBUG_MODE) return;\n  char buf[128];\n  va_list args; va_start(args, fmt);\n  vsnprintf(buf, sizeof(buf), fmt, args);\n  va_end(args);\n  Brain.Screen.printAt(10, 240, buf);\n  printf("%s\\n", buf); // a consola USB\n}`,
+api_ref:'printf, vsnprintf | vex::brain::screen — printAt()',exercise:'Agrega debug logging a tu función de PID. Registra: error, integral, derivativo y velocidad en cada ciclo. Analiza el log para verificar que Ki no da windup.'},
+
+{id:81,unit:9,unitTitle:'Algoritmos Avanzados',title:'Librerías Personalizadas del Equipo',level:'Avanzado',type:'lesson',free:false,duration:35,
+desc:'Crea tu library de funciones reutilizables para agilizar el desarrollo temporada tras temporada.',
+theory:`<p>Una librería de equipo es un conjunto de archivos .h/.cpp con funciones comunes: PID de giro, avanzarRecto, odometría, etc. Se reutiliza cada temporada sin reescribir. Los mejores equipos del mundo (254, 5225A) hacen esto.</p>`,
+code:`// vex_team_lib.h — librería del equipo\n#pragma once\n#include "vex.h"\n// Inicialización\nvoid libInit(vex::inertial& imu,\n             vex::motor_group& izq,\n             vex::motor_group& der);\n// Movimiento\nvoid girarA(double grados, double vel=60);\nvoid avanzarCm(double cm, double vel=70);\n// Odometría\nstruct Pose { double x,y,theta; };\nvoid odomReset();\nPose odomGet();\nvoid odomUpdate();`,
+api_ref:'Arquitectura de software — separación de concerns',exercise:'Crea tu librería de equipo con: girarA(), avanzarCm(), odomUpdate() y moverA(x,y). Prueba que funciona en un proyecto nuevo incluyendo solo el header.'},
+
+{id:82,unit:9,unitTitle:'Algoritmos Avanzados',title:'Examen Unidad 9 — Algoritmos Avanzados',level:'Avanzado',type:'exam',free:false,duration:15,
+desc:'Certifica tu dominio de PID, odometría, lógica difusa y programación avanzada.',
+exam:[
+{q:'¿Para qué sirve el anti-windup en un PID?',options:['Aumentar la velocidad','Evitar acumulación excesiva del término integral','Reducir el overshoot del término proporcional','Resetear el derivativo'],correct:1},
+{q:'En odometría, ¿qué sensor se recomienda para medir el ángulo (theta)?',options:['Encoder de motor','Rotation sensor','IMU Inertial','GPS'],correct:2},
+{q:'La lógica difusa usa funciones de membresía para:',options:['Clasificar en solo 0 o 1','Expresar grados parciales de pertenencia','Sustituir el PID completamente','Controlar servos'],correct:1},
+{q:'¿Qué hace el mutex en programación multitarea?',options:['Acelerar los threads','Prevenir acceso simultáneo a datos compartidos','Detener todos los threads','Sincronizar el FCS'],correct:1},
+{q:'Pure Pursuit calcula:',options:['El ángulo de giro instantáneo','Un punto lookahead fijo en la ruta para seguir suavemente','La velocidad máxima del robot','El heading del IMU'],correct:1},
+],code:'',api_ref:''},
+
+// ===== UNIDAD 10: VEXLINK Y CTE WORKCELL (8) =====
+{id:83,unit:10,unitTitle:'VEXlink y CTE Workcell',title:'Clase link — Comunicación entre Brains',level:'Avanzado',type:'lesson',free:false,duration:35,
+desc:'Comunica dos robots V5 inalámbricamente con VEXlink para estrategias coordinadas.',
+theory:`<p>VEXlink permite que dos Brains V5 se comuniquen vía radio. Útil para: estrategias de defensa coordinada en VEX U, control de campo dividido, o robots auxiliares (wings, blockers).</p>`,
+code:`// Brain MANAGER (envía datos)\nlink Enlace = link(PORT1, "vexAcademy", manager);\nvoid enviarPosicion() {\n  char msg[32];\n  snprintf(msg, sizeof(msg), "%.0f,%.0f", bot.x, bot.y);\n  Enlace.transmit(msg);\n}\n// Brain WORKER (recibe datos)\nlink Enlace2 = link(PORT1, "vexAcademy", worker);\nvoid recibirDatos() {\n  if(Enlace2.available()) {\n    char buf[64];\n    Enlace2.receive(buf, sizeof(buf));\n    // parsear buf...\n  }\n}`,
+api_ref:'vex::link — transmit(str), receive(buf,len), available(), isLinked()',exercise:'Configura dos Brains V5 con VEXlink. Envía la posición X,Y de un robot al otro. El robot receptor debe moverse 30cm hacia donde está el emisor.'},
+
+{id:84,unit:10,unitTitle:'VEXlink y CTE Workcell',title:'CTE Workcell — Introducción al Brazo Robótico',level:'Intermedio',type:'lesson',free:false,duration:30,
+desc:'El CTE Workcell es un brazo robótico industrial de VEX para aprendizaje de automatización.',
+theory:`<p>El <strong>CTE Workcell</strong> es un brazo robótico de 4 ejes con electromagneto que simula una célula de manufactura industrial. Se programa con C++ similar a los robots móviles.</p><ul><li>4 articulaciones con motores V5</li><li>Electromagneto para manipulación</li><li>Rotación de base ±90°</li></ul>`,
+code:`// Estructura básica de control del Workcell\nmotor BaseRot  = motor(PORT1, ratio36_1, false);\nmotor Hombro   = motor(PORT2, ratio36_1, false);\nmotor Codo     = motor(PORT3, ratio36_1, false);\nmotor Muneca   = motor(PORT4, ratio18_1, false);\ndigital_out Magnet = digital_out(Brain.ThreeWirePort.A);\nvoid activarMagneto() { Magnet.set(true); }\nvoid soltarPieza()    { Magnet.set(false); }`,
+api_ref:'VEX CTE Workcell — arquitectura de 4 DOF | vex::motor — spinToPosition()',exercise:'Programa el brazo para moverse a la posición de recogida, activar el magneto, moverse a la posición de depósito y soltar. Tiempo objetivo: < 5 segundos.'},
+
+{id:85,unit:10,unitTitle:'VEXlink y CTE Workcell',title:'Cinemática del Brazo — Coordenadas Articulares',level:'Experto',type:'lesson',free:false,duration:45,
+desc:'De coordenadas XYZ cartesianas a ángulos articulares con cinemática inversa básica.',
+theory:`<p>La <strong>cinemática inversa</strong> calcula los ángulos de las articulaciones dado un punto objetivo XYZ. Para un brazo de 2 segmentos (humero + codo) con longitudes L1=150mm, L2=120mm:</p>`,
+code:`// Cinemática inversa 2D para brazo de 2 segmentos\ndouble L1=150, L2=120; // mm\nbool calcIK(double x, double y,\n            double& th1, double& th2) {\n  double d = sqrt(x*x+y*y);\n  if(d > L1+L2) return false; // inalcanzable\n  double a = acos((L1*L1+L2*L2-d*d)/(2*L1*L2));\n  th2 = M_PI - a; // ángulo codo\n  double b = asin(L2*sin(th2)/d);\n  th1 = atan2(y,x) - b; // ángulo hombro\n  th1 *= 180/M_PI; th2 *= 180/M_PI;\n  return true;\n}`,
+api_ref:'Cinemática inversa 2D — Ley del coseno',exercise:'Implementa la función calcIK() para tu brazo real. Prueba con 5 puntos objetivos en el espacio de trabajo. Verifica que el brazo llega al punto con < 5mm de error.'},
+
+{id:86,unit:10,unitTitle:'VEXlink y CTE Workcell',title:'Integración de Visión en Workcell',level:'Experto',type:'lesson',free:false,duration:40,
+desc:'Detecta y clasifica piezas con el Vision Sensor para manipulación automática.',
+theory:`<p>Combina Vision Sensor + brazo para clasificación automática de piezas por color. El sensor detecta la pieza → calcula su posición en el espacio → la cinemática inversa lleva el brazo → magneto recoge → depósito por color.</p>`,
+code:`void clasificarPieza() {\n  SensorVision.takeSnapshot(ROJO);\n  if(SensorVision.objectCount > 0) {\n    auto& obj = SensorVision.largestObject;\n    // Estimar posición 3D desde centroide 2D\n    double x_est = mapearX(obj.centerX);\n    double y_est = mapearY(obj.centerY);\n    double th1, th2;\n    if(calcIK(x_est, y_est, th1, th2)) {\n      Hombro.spinToPosition(th1, degrees, true);\n      Codo.spinToPosition(th2, degrees, true);\n      activarMagneto();\n      wait(500, msec);\n      // Llevar al depósito ROJO\n      irADeposito(COLOR_ROJO);\n    }\n  }\n}`,
+api_ref:'vex::vision + cinemática inversa + digital_out magneto',exercise:'Implementa el sistema completo de clasificación por 2 colores. Mide cuántas piezas puede clasificar por minuto y calcula la eficiencia del ciclo.'},
+
+{id:87,unit:10,unitTitle:'VEXlink y CTE Workcell',title:'Examen Unidad 10 — VEXlink y Workcell',level:'Avanzado',type:'exam',free:false,duration:10,
+desc:'Verifica tu comprensión de comunicación entre robots y brazos robóticos.',
+exam:[
+{q:'¿Qué protocolo usa VEXlink para comunicar dos Brains?',options:['Bluetooth','WiFi 802.11','Radio VEX propietario','USB'],correct:2},
+{q:'La cinemática inversa calcula:',options:['La velocidad del motor','Los ángulos articulares dado un punto XYZ objetivo','La temperatura del actuador','La carga máxima del brazo'],correct:1},
+{q:'El electromagneto del CTE Workcell se controla con:',options:['motor','digital_out','pwm_out','analog_out'],correct:1},
+{q:'¿Cuántos DOF (grados de libertad) tiene el CTE Workcell?',options:['2','3','4','6'],correct:2},
+],code:'',api_ref:''},
+
+// ===== UNIDAD 11: PREPARACIÓN PARA JUECES (8) =====
+{id:88,unit:11,unitTitle:'Preparación para Jueces',title:'Engineering Notebook — Estructura Ganadora',level:'Intermedio',type:'lesson',free:false,duration:40,
+desc:'El Notebook puede ganar el Excellence Award. Aprende la estructura que convence a los jueces.',
+theory:`<p>El VEX Judging Guide evalúa el notebook en: <strong>Proceso de diseño, evidencia de iteración, documentación de código y trabajo en equipo.</strong></p><ul><li>Identifica el problema claramente</li><li>Muestra 3+ ideas alternativas</li><li>Justifica la selección con datos</li><li>Entrada por cada sesión con fecha, duración y resultados</li></ul>`,
+code:`// Fragmento de código documentado para el notebook:\n/**\n * girarA() - Control PID de orientación\n * @param target: ángulo objetivo en grados (0-359°)\n * @param velMax: velocidad máxima (% 0-100)\n * @return void\n * Kp=0.8, Ki=0.001, Kd=4.0 (calibrado 2024-03-15)\n * Error típico: ±2° en 90°, ±3° en 180°\n */\nvoid girarA(double target, double velMax=60);`,
+api_ref:'VEX Judging Guide — Engineering Notebook',exercise:'Escribe la entrada del notebook de TODAY. Incluye: hora inicio/fin, problema abordado, código escrito (incluye el fragmento), resultado de la prueba y próxima acción.'},
+
+{id:89,unit:11,unitTitle:'Preparación para Jueces',title:'Entrevista Técnica — Cómo Explicar tu Código',level:'Intermedio',type:'lesson',free:false,duration:30,
+desc:'Los jueces preguntan sobre cada línea de código. Prepara respuestas claras y honestas.',
+theory:`<p>La entrevista de jueces dura 5-10 min. Preguntas típicas:</p><ul><li>¿Por qué eligieron C++ en vez de bloques?</li><li>¿Qué hace exactamente este valor Kp=0.8?</li><li>¿Cómo probaron que la odometría es precisa?</li><li>¿Qué harían diferente el próximo año?</li></ul><p><strong>Regla de oro</strong>: Solo puedes defender código que entiendes completamente. Si no lo escribiste, no lo presentes.</p>`,
+code:`// Código que DEBES poder explicar línea por línea:\n// ¿Por qué 1.5 de tolerancia y no 1.0 o 2.0?\n} while(fabs(error) > 1.5);\n// ¿Por qué normalizar entre -180 y 180?\nif(error > 180) error -= 360;\n// ¿Por qué resetear integral al terminar?\nintegral = 0; // Evita windup en el siguiente llamado`,
+api_ref:'VEX Judging — preparación de entrevista técnica',exercise:'Practica la entrevista: pide a alguien del equipo que te pregunte sobre 5 secciones específicas de tu código. Si no puedes explicar alguna, ¡ese es el código que necesitas entender mejor!'},
+
+{id:90,unit:11,unitTitle:'Preparación para Jueces',title:'Ética en Código — Innovar vs. Copiar',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Usar código de referencia es válido. Presentarlo como propio sin entenderlo no lo es.',
+theory:`<p>Los jueces experimentados detectan código copiado en segundos durante la entrevista. La innovación real, incluso pequeña, siempre supera la copia porque PUEDES DEFENDERLA.</p><ul><li><strong>Válido</strong>: Aprender de ejemplos, adaptarlos, mejorarlos</li><li><strong>Inválido</strong>: Copiar y no poder explicar ninguna línea</li><li><strong>Innovación mínima</strong>: Aplicar PID a un nuevo mecanismo = innovación</li></ul>`,
+code:`// El Innovate Award busca aplicaciones creativas de sensores\n// Ejemplo de innovación real:\n// Vision Sensor usado para ALINEACIÓN AUTOMÁTICA al disparar\n// (no solo detección) — esto es innovación documentable\nvoid alinearConVision() {\n  // ... (código que ESCRIBISTE y ENTIENDES)\n}`,
+api_ref:'VEX Innovate Award criteria | VEX Code of Conduct',exercise:'Identifica 1 característica de tu robot que sea genuinamente innovadora (sin importar cuán pequeña). Documenta: qué problema resuelve, por qué es nueva, y cómo lo probaron.'},
+
+{id:91,unit:11,unitTitle:'Preparación para Jueces',title:'Sustento Técnico — Datos de la Base',level:'Avanzado',type:'lesson',free:false,duration:30,
+desc:'Sustenta decisiones técnicas con datos, tablas y comparaciones medibles.',
+theory:`<p>Los jueces valoran decisiones basadas en datos, no en suposiciones. Para cada decisión técnica de tu robot debes tener:</p><ul><li>¿Cuáles eran las alternativas?</li><li>¿Cómo las evaluaron (métricas)?</li><li>¿Por qué eligieron esta?</li><li>¿Los datos lo confirman?</li></ul>`,
+code:`// Datos comparativos documentados:\n// Alternativa A: Cartucho Verde (200RPM)\n// Prueba: 5 repeticiones de 1m. Promedio: 1.23s ±0.05s\n// Alternativa B: Cartucho Azul (600RPM) con gear 1:3\n// Prueba: 5 repeticiones de 1m. Promedio: 0.91s ±0.08s\n// DECISIÓN: Azul+gear 1:3 (26% más rápido)\n// pero error aumenta ±0.08 vs ±0.05\n// → Azul para Driver, Verde para Autónomo`,
+api_ref:'Método científico aplicado a ingeniería robótica',exercise:'Diseña y ejecuta un experimento comparativo para elegir entre dos configuraciones de tu robot (ej: dos gear ratios). Registra al menos 5 mediciones de cada alternativa y decide con datos.'},
+
+{id:92,unit:11,unitTitle:'Preparación para Jueces',title:'GitHub como Evidencia de Proceso',level:'Básico',type:'lesson',free:false,duration:20,
+desc:'Un historial de commits es evidencia irrefutable del proceso de desarrollo.',
+theory:`<p>Un repositorio activo con commits fechados demuestra que el desarrollo ocurrió durante semanas, no la noche anterior. Los jueces pueden ver el historial público.</p><ul><li>Commit por sesión de trabajo (con fecha)</li><li>Messages descriptivos en español</li><li>README con specs del robot y sensores</li><li>Wiki para documentación extendida</li></ul>`,
+code:`# Buenos mensajes de commit:\ngit commit -m "feat: implementar PID de giro con IMU"\ngit commit -m "fix: corregir normalización de ángulo en pidGiro"\ngit commit -m "perf: reducir ciclo de control de 20ms a 10ms"\ngit commit -m "docs: agregar comentarios a función de odometría"\n# Crear tag para versión de competencia:\ngit tag -a v2.0-competencia -m "Versión para Regional Monterrey"`,
+api_ref:'Git — mensajes de commit, tags, releases',exercise:'Crea un tag de release en GitHub para tu versión actual de competencia. Escribe las release notes describiendo qué funciona, qué se mejoró y qué está pendiente.'},
+
+{id:93,unit:11,unitTitle:'Preparación para Jueces',title:'Preparación para Interview — Simulacro',level:'Intermedio',type:'exam',free:false,duration:30,
+desc:'Simulacro de entrevista con jueces. Responde sin ver tus notas.',
+exam:[
+{q:'Un juez pregunta: ¿Por qué calibran el IMU en pre_auton y no en autonomous()? Mejor respuesta:',options:['Porque el código no funciona si no','Porque pre_auton corre con el robot inmóvil, garantizando calibración limpia sin movimiento que interfiera','Porque el FCS lo exige','Porque el autónomo no tiene tiempo'],correct:1},
+{q:'¿Qué es el Kp en tu PID de giro?',options:['Un número aleatorio','La ganancia proporcional que escala el error actual en velocidad de corrección','El tiempo de convergencia','La velocidad máxima del motor'],correct:1},
+{q:'Un juez pide que expliques odometría. Deberías decir:',options:['Es un sensor externo','Sistema matemático que integra pequeños desplazamientos de encoders para estimar posición XY en tiempo real','Un GPS de precisión','El IMU en modo posición'],correct:1},
+{q:'¿Por qué su autónomo es mejor para su robot que el de otro equipo?',options:['Porque lo copiamos de campeones','Porque fue diseñado específicamente para nuestras dimensiones, velocidades y gear ratios medidos con datos reales','Porque es más largo','Porque usa más sensores'],correct:1},
+],code:'',api_ref:''},
+
+{id:94,unit:11,unitTitle:'Preparación para Jueces',title:'Examen Final — Certificación VEX Academy',level:'Experto',type:'exam',free:false,duration:30,
+desc:'Examen de certificación final. 10 preguntas de todos los módulos.',
+exam:[
+{q:'Para movimiento recto preciso en autónomo, debes combinar:',options:['Solo velocidad constante','Encoder de motor + PID de heading con IMU','GPS únicamente','Control de tiempo fijo'],correct:1},
+{q:'La relación de engranajes 18:84 da:',options:['4.67x más velocidad','4.67x menos velocidad y 4.67x más torque','Igual velocidad','Reversa automática'],correct:1},
+{q:'¿Cuándo se usa motor.stop(hold)?',options:['Siempre para ahorrar batería','Solo en mecanismos que deben mantener posición contra gravedad','Nunca, daña el motor','Durante el autónomo solamente'],correct:1},
+{q:'El Pure Pursuit es mejor que turn-then-drive porque:',options:['Es más fácil','Permite movimiento curvo continuo más rápido','Usa menos CPU','No necesita odometría'],correct:1},
+{q:'Para el Excellence Award el Engineering Notebook debe mostrar:',options:['Solo el código final','Solo fotos del robot','Proceso de diseño con iteraciones, datos comparativos y entradas fechadas','El presupuesto del equipo'],correct:2},
+{q:'Anti-windup en PID sirve para:',options:['Reducir Kp','Limitar la acumulación del integral para evitar sobrecompensación','Aumentar velocidad de respuesta','Resetear el derivativo automáticamente'],correct:1},
+{q:'La clase task de VEX permite:',options:['Control multi-robot','Ejecución paralela de funciones (multithreading)','Comunicación con FCS','Registro de tiempos'],correct:1},
+{q:'El GPS Sensor requiere para funcionar:',options:['Conexión WiFi','Tira GPS instalada en los bordes del campo','Calibración del IMU','Pantalla táctil activa'],correct:1},
+],code:'',api_ref:''},
+];
