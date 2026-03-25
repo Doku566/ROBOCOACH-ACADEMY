@@ -398,17 +398,48 @@ function showCheckout() {
         </div>
     `;
 }
+// === PREMIUM UX / TOASTS ===
+window.showToast = function(message, type = 'success') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px; pointer-events:none;';
+        document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    const bg = type === 'success' ? '#00C853' : (type === 'error' ? '#ff4444' : '#00B4D8');
+    const icon = type === 'success' ? '✔' : (type === 'error' ? '⚠' : 'ℹ️');
+    toast.style.cssText = `background:${bg};color:white;padding:12px 24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.4);font-weight:600;font-size:0.9rem;opacity:0;transform:translateY(20px);transition:all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; align-items:center; gap:8px;`;
+    toast.innerHTML = `<span style="font-size:1.2rem">${icon}</span> <span>${sanitize(message)}</span>`;
+    
+    container.appendChild(toast);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+    
+    // Animate out
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
+};
 
 function handlePayment(e) {
     e.preventDefault();
     // Validate card number (basic Luhn check)
     const cardVal = document.getElementById('cardNumber').value.replace(/\s/g,'');
     if (!/^\d{16}$/.test(cardVal)) {
-        alert('Número de tarjeta inválido. Verifica e intenta de nuevo.');
+        showToast('Número de tarjeta inválido. Verifica e intenta de nuevo.', 'error');
         return;
     }
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerText = 'Procesando...';
+    btn.innerHTML = '<span class="spinner" style="display:inline-block;width:1rem;height:1rem;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span> Procesando...';
     btn.disabled = true;
     setTimeout(() => {
         isSubscribed = true;

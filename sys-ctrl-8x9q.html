@@ -288,55 +288,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script>
-        // === MOCK DATABASE STATE (SaaS Simulator) ===
-        // These keys represent how a real DB would be structured.
-        const DB = {
-            users: JSON.parse(localStorage.getItem('admin_users')) || [
-                { id: '1001', email: 'juan.perez@gmail.com', date: '2026-03-20', status: 'free' },
-                { id: '1002', email: 'maria.gomez@gmail.com', date: '2026-03-21', status: 'pro' },
-                { id: '1003', email: '2010145@utmatamoros.edu.mx', date: '2026-03-24', status: 'inst' },
-                { id: '1004', email: 'pedro@cetis130.edu.mx', date: '2026-03-24', status: 'inst' },
-                { id: '1005', email: 'alan.robotic@hotmail.com', date: '2026-03-23', status: 'free' },
-                { id: '1006', email: 'santiago@tecvictoria.edu.mx', date: '2026-03-22', status: 'inst' }
-            ],
-            licenses: JSON.parse(localStorage.getItem('admin_licenses')) || [
-                { name: 'UT Matamoros', domain: '@utmatamoros.edu.mx', total: 50, used: 12 },
-                { name: 'TEC Victoria', domain: '@tecvictoria.edu.mx', total: 25, used: 25 }, // all used
-                { name: 'CETIS 130', domain: '@cetis130.edu.mx', total: 100, used: 8 }
-            ]
-        };
-
-        // Check if current user is logged in (from app.js) and inject into mock DB if new
-        const currentUserEmail = localStorage.getItem('userEmail');
-        if (currentUserEmail) {
-            const exists = DB.users.find(u => u.email === currentUserEmail);
-            if (!exists) {
-                let currentStatus = 'free';
-                if (localStorage.getItem('isSubscribed') === 'true') {
-                    // Check if institutional or pro
-                    const instMatch = DB.licenses.find(lic => currentUserEmail.endsWith(lic.domain));
-                    if (instMatch) {
-                        currentStatus = 'inst';
-                        // Simulate usage increment
-                        if(instMatch.used < instMatch.total) instMatch.used++; 
-                    } else {
-                        currentStatus = 'pro';
-                    }
-                }
-                DB.users.push({
-                    id: String(1000 + DB.users.length + 1),
-                    email: currentUserEmail,
-                    date: new Date().toISOString().split('T')[0],
-                    status: currentStatus
-                });
-                syncDB();
+        // === TOAST NOTIFICATION SYSTEM ===
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
+                document.body.appendChild(container);
             }
+            const bg = type === 'success' ? '#00C853' : (type === 'error' ? '#ff4444' : '#00B4D8');
+            const icon = type === 'success' ? '✔' : (type === 'error' ? '⚠' : 'ℹ️');
+            const toast = document.createElement('div');
+            toast.style.cssText = `background:${bg};color:white;padding:12px 24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.5);font-weight:600;font-size:0.9rem;opacity:0;transform:translateY(20px);transition:all 0.3s ease;display:flex;align-items:center;gap:8px;`;
+            toast.innerHTML = `<span style="font-size:1.2rem">${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => { toast.style.opacity='1'; toast.style.transform='translateY(0)'; });
+            setTimeout(() => { toast.style.opacity='0'; setTimeout(() => toast.remove(), 300); }, 4500);
         }
 
-        function syncDB() {
-            localStorage.setItem('admin_users', JSON.stringify(DB.users));
-            localStorage.setItem('admin_licenses', JSON.stringify(DB.licenses));
-        }
 
         // === ADMIN AUTH ===
         function checkAdminSession() {
@@ -388,135 +358,169 @@
             document.getElementById('licenseModal').style.display = 'flex';
         }
 
-        // === DATA RENDERING ===
-        function initSaaS() {
-            renderKPIs();
-            renderUsers();
-            renderLicenses();
-            renderContent();
+        // === DATA RENDERING (SUPABASE LIVE) ===
+        async function initSaaS() {
+            await renderKPIs();
+            await renderUsers();
+            await renderLicenses();
+            await renderContent();
         }
 
-        function renderKPIs() {
-            const totalUsers = DB.users.length;
-            const proUsers = DB.users.filter(u => u.status === 'pro').length;
-            const instUsers = DB.users.filter(u => u.status === 'inst').length;
-            
-            // Assume organic PRO users pay $29/mo, institutional licenses bought in bulk ($20/license)
-            const organicRev = proUsers * 29;
-            const b2bRev = DB.licenses.reduce((acc, lic) => acc + (lic.total * 20), 0);
-            const totalMRR = organicRev + b2bRev;
+        async function renderKPIs() {
+            try {
+                const { data: users } = await window.db.from('perfiles').select('rango');
+                const { data: licencias } = await window.db.from('licencias_b2b').select('*');
+                const { data: foros } = await window.db.from('foro_comunidad').select('id', { count: 'exact' });
 
-            const licensesUsed = DB.licenses.reduce((acc, lic) => acc + lic.used, 0);
-            const licensesTotal = DB.licenses.reduce((acc, lic) => acc + lic.total, 0);
+                const totalUsers = users ? users.length : 0;
+                const proUsers = users ? users.filter(u => u.rango === 'PRO').length : 0;
+                const b2bUsers = users ? users.filter(u => u.rango === 'B2B').length : 0;
+                const organicRev = proUsers * 29;
+                const b2bRev = licencias ? licencias.reduce((acc, l) => acc + (l.total_asientos * 20), 0) : 0;
+                const totalMRR = organicRev + b2bRev;
+                const licensesUsed = licencias ? licencias.reduce((acc, l) => acc + l.asientos_usados, 0) : 0;
+                const licensesTotal = licencias ? licencias.reduce((acc, l) => acc + l.total_asientos, 0) : 0;
 
-            document.getElementById('kpiRevenue').innerText = `$${totalMRR.toLocaleString()} USD`;
-            document.getElementById('kpiUsers').innerText = totalUsers;
-            document.getElementById('kpiPro').innerText = proUsers + instUsers;
-            document.getElementById('kpiLicenses').innerText = `${licensesUsed} / ${licensesTotal}`;
+                document.getElementById('kpiRevenue').innerText = `$${totalMRR.toLocaleString()} USD`;
+                document.getElementById('kpiUsers').innerText = totalUsers;
+                document.getElementById('kpiPro').innerText = proUsers + b2bUsers;
+                document.getElementById('kpiLicenses').innerText = `${licensesUsed} / ${licensesTotal}`;
+            } catch(err) {
+                console.error(err);
+            }
         }
 
-        function getStatusBadgeHtml(status) {
-            if (status === 'free') return `<span class="status-badge" style="background:rgba(255,255,255,0.1);color:#CCC">Gratis</span>`;
-            if (status === 'pro') return `<span class="status-badge status-pro">Suscripción PRO</span>`;
-            if (status === 'inst') return `<span class="status-badge status-inst">Institucional</span>`;
+        function getStatusBadgeHtml(rango) {
+            if (!rango || rango === 'GRATIS') return `<span class="status-badge" style="background:rgba(255,255,255,0.1);color:#CCC">Gratis</span>`;
+            if (rango === 'PRO') return `<span class="status-badge status-pro">Suscripción PRO</span>`;
+            if (rango === 'B2B') return `<span class="status-badge status-inst">Institucional B2B</span>`;
+            if (rango === 'VEX INSTRUCTOR') return `<span class="status-badge" style="background:rgba(0,180,216,0.2);color:#00B4D8;border-color:#00B4D8">Instructor</span>`;
             return '';
         }
 
-        function renderUsers() {
+        async function renderUsers() {
             const tbody = document.getElementById('usersBody');
-            tbody.innerHTML = DB.users.slice().reverse().map(u => `
-                <tr>
-                    <td style="color:#666">#${u.id}</td>
-                    <td style="font-weight:500">${sanitize(u.email)}</td>
-                    <td style="color:#A0A0A0">${u.date}</td>
-                    <td>${getStatusBadgeHtml(u.status)}</td>
-                    <td>
-                        <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem" onclick="alert('Funcionalidad de auditoría en progreso.')">Ver Historial</button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1rem;color:#666">Cargando usuarios desde la nube...</td></tr>`;
+            try {
+                const { data: users, error } = await window.db.from('perfiles').select('*').order('fecha_registro', { ascending: false });
+                if (error) throw error;
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td style="color:#666">${u.id.substring(0,8)}...</td>
+                        <td style="font-weight:500">${sanitize(u.email)}</td>
+                        <td style="color:#A0A0A0">${new Date(u.fecha_registro).toLocaleDateString()}</td>
+                        <td>${getStatusBadgeHtml(u.rango)}</td>
+                        <td>
+                            <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem;border-color:#ff4444;color:#ff4444" onclick="banUser('${u.id}', '${sanitize(u.email)}')">Revocar</button>
+                        </td>
+                    </tr>
+                `).join('');
+                if (users.length === 0) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#666;padding:1rem">Sin usuarios registrados en la nube todavía.</td></tr>`;
+            } catch(err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="5" style="color:#ff4444;text-align:center;padding:1rem;">Error conectando a Supabase.</td></tr>`;
+            }
         }
 
-        function renderLicenses() {
+        async function banUser(id, email) {
+            if (!confirm(`¿Revocar acceso de ${email}? Se degradará a rango GRATIS.`)) return;
+            const { error } = await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', id);
+            if (error) { showToast('Error al revocar usuario.', 'error'); return; }
+            showToast(`Acceso de ${email} revocado.`, 'success');
+            renderUsers();
+        }
+
+        async function renderLicenses() {
             const tbody = document.getElementById('licensesBody');
-            tbody.innerHTML = DB.licenses.map(lic => {
-                const remaining = lic.total - lic.used;
-                const isFull = remaining <= 0;
-                return `
-                <tr>
-                    <td style="font-weight:600">${sanitize(lic.name)}</td>
-                    <td style="color:#A0A0A0">${sanitize(lic.domain)}</td>
-                    <td>${lic.total}</td>
-                    <td style="${isFull ? 'color:var(--vex-red);font-weight:700' : 'color:#00C853'}">${lic.used}</td>
-                    <td>${isFull ? '<span style="color:var(--vex-red)">AGOTADO</span>' : remaining}</td>
-                    <td><span class="status-badge status-free">Activo</span></td>
-                </tr>
-            `}).join('');
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:1rem;color:#666">Cargando convenios...</td></tr>`;
+            try {
+                const { data: licencias, error } = await window.db.from('licencias_b2b').select('*');
+                if (error) throw error;
+                tbody.innerHTML = licencias.map(lic => {
+                    const remaining = lic.total_asientos - lic.asientos_usados;
+                    const isFull = remaining <= 0;
+                    return `
+                    <tr>
+                        <td style="font-weight:600">${sanitize(lic.institucion)}</td>
+                        <td style="color:#A0A0A0">${sanitize(lic.codigo)}</td>
+                        <td>${lic.total_asientos}</td>
+                        <td style="${isFull ? 'color:var(--vex-red);font-weight:700' : 'color:#00C853'}">${lic.asientos_usados}</td>
+                        <td>${isFull ? '<span style="color:var(--vex-red)">AGOTADO</span>' : remaining}</td>
+                        <td><span class="status-badge status-free">Activo</span></td>
+                    </tr>`;
+                }).join('');
+            } catch(err) {
+                console.error(err);
+            }
         }
 
-        function renderContent() {
+        async function renderContent() {
             const tbody = document.getElementById('contentBody');
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1rem;color:#666">Cargando módulos desde la nube...</td></tr>`;
+            
             const baseCourses = window.CURRICULUM || [];
-            const customCourses = JSON.parse(localStorage.getItem('vex_courses_custom')) || [];
-            const deletedIds = JSON.parse(localStorage.getItem('vex_courses_deleted')) || [];
             
-            const map = new Map();
-            baseCourses.forEach(c => map.set(c.id, c));
-            customCourses.forEach(c => map.set(c.id, c));
-            
-            let allCourses = Array.from(map.values()).filter(c => !deletedIds.includes(c.id));
-            
-            // Sort by ID descending to see new ones first
-            const displayCourses = allCourses.slice().reverse().slice(0, 30);
-            
-            tbody.innerHTML = displayCourses.map(c => `
+            // Fetch custom courses from Supabase
+            let supabaseCourses = [];
+            let deletedCloudIds = [];
+            try {
+                const { data } = await window.db.from('cursos_custom').select('*').eq('is_deleted', false);
+                supabaseCourses = data || [];
+                const { data: deleted } = await window.db.from('cursos_custom').select('id').eq('is_deleted', true);
+                deletedCloudIds = (deleted || []).map(d => d.id);
+            } catch(e) { console.error(e); }
+
+            const cloudCourseMap = new Map();
+            supabaseCourses.forEach(c => cloudCourseMap.set(c.id, { ...c, isCloud: true }));
+
+            // Merge base curriculum with cloud overrides (cloud wins)
+            const allCourses = [...baseCourses.filter(c => !deletedCloudIds.includes(c.id)), ...supabaseCourses];
+
+            tbody.innerHTML = allCourses.slice(-30).reverse().map(c => `
                 <tr>
                     <td style="color:#666">Módulo ${c.id}</td>
                     <td style="font-weight:500">${sanitize(c.title)}</td>
                     <td>${c.free ? '<span class="status-badge status-free">Público</span>' : '<span class="status-badge status-pro">Premium</span>'}</td>
-                    <td>~${Math.floor(Math.random() * 5000) + 500} vistas</td>
+                    <td>${c.isCloud ? '<span style="color:#00B4D8;font-size:0.75rem">☁ Nube</span>' : '<span style="color:#666;font-size:0.75rem">💾 Local</span>'}</td>
                     <td>
-                        <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem;margin-right:0.5rem;" onclick="openEditModal(${c.id})">Editar</button>
-                        <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem;border-color:var(--vex-red);color:var(--vex-red);" onclick="deleteCourse(${c.id})">Borrar</button>
+                        <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem;margin-right:0.5rem;" onclick="openEditModal(${c.id}, ${!!c.isCloud})">Editar</button>
+                        <button class="btn-secondary" style="padding:0.3rem 0.6rem;font-size:0.7rem;border-color:var(--vex-red);color:var(--vex-red);" onclick="deleteCourse(${c.id}, ${!!c.isCloud})">Borrar</button>
                     </td>
                 </tr>
             `).join('');
-            
-            if(allCourses.length > 30) {
-                tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;color:#666">Mostrando 30 de ${allCourses.length} módulos.</td></tr>`;
-            }
-        }
-        
-        function getCourseById(id) {
-            const baseCourses = window.CURRICULUM || [];
-            const customCourses = JSON.parse(localStorage.getItem('vex_courses_custom')) || [];
-            return customCourses.find(c => c.id === id) || baseCourses.find(c => c.id === id);
         }
 
-        function openEditModal(id) {
-            const course = getCourseById(id);
-            if(!course) return;
-            
+        async function openEditModal(id, isCloud) {
+            let course;
+            if (isCloud) {
+                const { data } = await window.db.from('cursos_custom').select('*').eq('id', id).single();
+                course = data;
+            } else {
+                course = (window.CURRICULUM || []).find(c => c.id === id);
+            }
+            if (!course) return;
+
             document.getElementById('eId').value = course.id;
             document.getElementById('eTitle').value = course.title;
-            document.getElementById('eType').value = course.type;
+            document.getElementById('eType').value = course.type || 'Lectura';
             document.getElementById('eAccess').value = course.free ? 'true' : 'false';
             document.getElementById('eVideo').value = course.video || '';
             document.getElementById('eDuration').value = course.duration || 15;
             document.getElementById('eUnit').value = course.unit || 1;
             document.getElementById('eCode').value = course.code || '';
-            
+            document.getElementById('editModal').dataset.isCloud = isCloud ? '1' : '0';
             document.getElementById('editModal').style.display = 'flex';
         }
 
-        function handleEdit(e) {
+        async function handleEdit(e) {
             e.preventDefault();
             const id = parseInt(document.getElementById('eId').value);
-            const course = getCourseById(id);
-            if(!course) return;
-            
+            const isCloud = document.getElementById('editModal').dataset.isCloud === '1';
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = 'Guardando en Nube...';
+            btn.disabled = true;
+
             const updated = {
-                ...course,
                 title: document.getElementById('eTitle').value,
                 type: document.getElementById('eType').value,
                 free: document.getElementById('eAccess').value === 'true',
@@ -525,99 +529,114 @@
                 unit: parseInt(document.getElementById('eUnit').value),
                 code: document.getElementById('eCode').value
             };
-            
-            let customCourses = JSON.parse(localStorage.getItem('vex_courses_custom')) || [];
-            const idx = customCourses.findIndex(c => c.id === id);
-            if(idx > -1) {
-                customCourses[idx] = updated;
-            } else {
-                customCourses.push(updated);
+
+            try {
+                if (isCloud) {
+                    const { error } = await window.db.from('cursos_custom').update(updated).eq('id', id);
+                    if (error) throw error;
+                } else {
+                    // Promote base course to cloud by inserting as cloud course
+                    const { error } = await window.db.from('cursos_custom').insert([{ id, ...updated }]);
+                    if (error) throw error;
+                }
+                closeModal('editModal');
+                showToast('¡Módulo actualizado en la Nube!', 'success');
+                renderContent();
+            } catch(err) {
+                console.error(err);
+                showToast('Error al guardar en Supabase.', 'error');
+            } finally {
+                btn.innerText = 'Guardar Cambios';
+                btn.disabled = false;
             }
-            localStorage.setItem('vex_courses_custom', JSON.stringify(customCourses));
-            
-            closeModal('editModal');
-            renderContent();
-            alert('¡Módulo actualizado correctamente!');
         }
 
-        function deleteCourse(id) {
-            if(!confirm(`¿Seguro que deseas ELIMINAR el módulo ${id}? Esta acción es irreversible.`)) return;
-            
-            let customCourses = JSON.parse(localStorage.getItem('vex_courses_custom')) || [];
-            const idx = customCourses.findIndex(c => c.id === id);
-            if(idx > -1) {
-                customCourses.splice(idx, 1);
-                localStorage.setItem('vex_courses_custom', JSON.stringify(customCourses));
+        async function deleteCourse(id, isCloud) {
+            if (!confirm(`¿Seguro que deseas ELIMINAR el módulo ${id}? Esta acción es irreversible.`)) return;
+            try {
+                if (isCloud) {
+                    const { error } = await window.db.from('cursos_custom').update({ is_deleted: true }).eq('id', id);
+                    if (error) throw error;
+                } else {
+                    // Mark a base course as deleted in the cloud
+                    const { error } = await window.db.from('cursos_custom').insert([{ id, title: 'Deleted', is_deleted: true }]);
+                    if (error) throw error;
+                }
+                showToast('Módulo eliminado de la Nube.', 'info');
+                renderContent();
+            } catch(err) {
+                console.error(err);
+                showToast('Error al eliminar módulo.', 'error');
             }
-            
-            // Si es base course, meterlo a deleted
-            let deletedIds = JSON.parse(localStorage.getItem('vex_courses_deleted')) || [];
-            if(!deletedIds.includes(id)) {
-                deletedIds.push(id);
-                localStorage.setItem('vex_courses_deleted', JSON.stringify(deletedIds));
-            }
-            
-            renderContent();
         }
 
         // === FORM HANDLERS ===
-        function handleNewLicense(e) {
+        async function handleNewLicense(e) {
             e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = 'Guardando en Servidor...';
+            btn.disabled = true;
+
             const name = document.getElementById('instName').value;
             const domain = document.getElementById('instDomain').value;
             const quota = parseInt(document.getElementById('instQuota').value);
+            const code = `${name.toUpperCase().replace(/\s+/g, '-').substring(0, 6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             
-            DB.licenses.push({ name, domain, total: quota, used: 0 });
-            syncDB();
-            
-            closeModal('licenseModal');
-            document.getElementById('instName').value = '';
-            document.getElementById('instDomain').value = '';
-            document.getElementById('instQuota').value = '';
-            
-            switchTab('tabLicencias'); // switch to license tab
-            initSaaS(); // Re-render everything
-            
-            setTimeout(() => alert('¡Convenio Institucional Activado Exitosamente!\nSe ha sumado el ingreso (MRR) de las nuevas ' + quota + ' licencias al dashboard financiero.'), 100);
+            try {
+                const { error } = await window.db.from('licencias_b2b').insert([{
+                    codigo: code,
+                    institucion: name,
+                    total_asientos: quota,
+                    asientos_usados: 0
+                }]);
+                if (error) throw error;
+                
+                closeModal('licenseModal');
+                e.target.reset();
+                showToast(`¡Convenio B2B activado! Código generado: ${code}`, 'success');
+                await renderLicenses();
+                await renderKPIs();
+            } catch(err) {
+                console.error(err);
+                showToast('Error al guardar convenio en Supabase.', 'error');
+            } finally {
+                btn.innerText = 'Activar Convenio';
+                btn.disabled = false;
+            }
         }
 
-        function handleUpload(e) {
+        async function handleUpload(e) {
             e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            if(btn) { btn.innerText = 'Subiendo a la Nube...'; btn.disabled = true; }
+
             const title = document.getElementById('vTitle').value;
             const type = document.getElementById('vType').value;
-            const accessStr = document.getElementById('vAccess').value; // 'true' libre, 'false' pro
+            const accessStr = document.getElementById('vAccess').value;
             const videoId = document.getElementById('vVideo').value || 'FwwyoFrypyM';
 
-            let customCourses = JSON.parse(localStorage.getItem('vex_courses_custom')) || [];
-            
-            // Calculate new ID
-            const baseCourses = window.CURRICULUM || [];
-            const maxBaseId = baseCourses.reduce((max, c) => Math.max(max, c.id), 0);
-            const maxCustomId = customCourses.reduce((max, c) => Math.max(max, c.id), 0);
-            const newId = Math.max(maxBaseId, maxCustomId) + 1;
+            try {
+                const { error } = await window.db.from('cursos_custom').insert([{
+                    title: title,
+                    type: type,
+                    free: accessStr === 'true',
+                    video: videoId,
+                    duration: Math.floor(Math.random() * 40) + 10,
+                    unit: 1
+                }]);
+                if (error) throw error;
 
-            const newModule = {
-                id: newId,
-                title: title,
-                desc: 'Módulo de Currículum Custom V5 subido por el Administrador desde el CMS de Panel SaaS.',
-                duration: Math.floor(Math.random() * 40) + 10,
-                unit: 1, // Por default inyectamos nuevos subidos a la Unidad 1 
-                free: accessStr === 'true',
-                type: type,
-                video: videoId
-            };
-
-            customCourses.push(newModule);
-            localStorage.setItem('vex_courses_custom', JSON.stringify(customCourses));
-
-            closeModal('uploadModal');
-            document.getElementById('uploadForm').reset();
-            
-            // Switch to content tab to see changes immediately
-            switchTab('tabContenido');
-            initSaaS();
-            
-            setTimeout(() => alert('¡Módulo Guardado en Base de Datos Local!\nAbre o actualiza index.html para ver tu nuevo video en vivo en la plataforma.'), 200);
+                closeModal('uploadModal');
+                document.getElementById('uploadForm').reset();
+                showToast('¡Módulo guardado en la nube! Ahora aparece en el currículum en vivo.', 'success');
+                switchTab('tabContenido');
+                await renderContent();
+            } catch(err) {
+                console.error(err);
+                showToast('Error guardando módulo en el servidor.', 'error');
+            } finally {
+                if(btn) { btn.innerText = 'Subir Módulo'; btn.disabled = false; }
+            }
         }
 
         // Add some basic styling dynamically 
