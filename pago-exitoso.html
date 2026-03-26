@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Pago Exitoso! | RoboCoach Academy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0A0A0A;
+            --vex-red: #E31B23;
+            --accent-blue: #00B4D8;
+            --text-main: #FFFFFF;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            text-align: center;
+            padding: 2.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            max-width: 550px;
+            width: 90%;
+            backdrop-filter: blur(20px);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .icon {
+            font-size: 5rem;
+            color: #00C853;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 0 15px rgba(0, 200, 83, 0.3));
+        }
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+        }
+        p {
+            color: #A0A0A0;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+        .badge {
+            background: rgba(0, 180, 216, 0.1);
+            color: var(--accent-blue);
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            border: 1px solid rgba(0, 180, 216, 0.2);
+        }
+        .btn {
+            background: var(--vex-red);
+            color: white;
+            text-decoration: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 700;
+            display: inline-block;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(227, 27, 35, 0.3);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🏆</div>
+        <h1>¡Licencia Activada!</h1>
+        <div id="instName" class="badge">Cargando institución...</div>
+        <p>
+            El pago se ha procesado correctamente. Los miembros de tu institución ya pueden registrarse usando su correo institucional para obtener acceso Premium automático.
+        </p>
+        <p style="font-size: 0.85rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
+            Se ha enviado un recibo y los detalles de la licencia al correo de contacto proporcionado.
+        </p>
+        <a href="/" class="btn">Volver a la Academia</a>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const inst = params.get('inst');
+        if (inst) {
+            document.getElementById('instName').innerText = decodeURIComponent(inst);
+        }
+    </script>
+</body>
+</html>

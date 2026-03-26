@@ -489,7 +489,7 @@ function showLogin(emailInputValue = '') {
 async function checkAuthStep() {
     const emailStr = document.getElementById('loginEmail').value.trim().toLowerCase();
     if (!emailStr || !emailStr.includes('@')) {
-        alert('Por favor ingresa un correo electrónico válido.');
+        showToast('Por favor ingresa un correo electrónico válido.', 'error');
         return;
     }
 
@@ -497,19 +497,34 @@ async function checkAuthStep() {
     if(btn) { btn.innerText = "Consultando BD Nube..."; btn.disabled = true; }
 
     try {
-        const { data, error } = await window.db.from('perfiles').select('*').eq('email', emailStr);
+        const { data, error } = await window.db.from('perfiles').select('*, licencias_b2b(*)').eq('email', emailStr);
         if (error) throw error;
 
         if (data && data.length > 0) {
-            // User exists -> Execute Login directly
-            processLoginSuccess(emailStr, data[0]);
+            const profile = data[0];
+            
+            // ── Phase 8: Verify License Validity on Login ──
+            if (profile.rango === 'B2B' && profile.licencia_codigo) {
+                const lic = profile.licencias_b2b;
+                const isExpired = lic ? new Date(lic.fecha_expiracion) < new Date() : true;
+                const isActive = lic ? lic.activa : false;
+
+                if (isExpired || !isActive) {
+                    console.warn('License expired or inactive. Downgrading session.');
+                    profile.rango = 'GRATIS';
+                    // Optional: Update DB to reflect downgrade
+                    await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', profile.id);
+                    showToast('Tu licencia institucional ha expirado. Acceso limitado a GRATIS.', 'warning');
+                }
+            }
+
+            processLoginSuccess(emailStr, profile);
         } else {
-            // User is NEW -> Show full Registration Form
             showRegistrationForm(emailStr);
         }
     } catch(err) {
         console.error(err);
-        alert('Error de conexión con Supabase.');
+        showToast('Error de conexión con Supabase.', 'error');
         if(btn) { btn.innerText = "Continuar"; btn.disabled = false; }
     }
 }
@@ -572,53 +587,144 @@ async function handleRegistration(e, emailStr) {
     const btn = e.target.querySelector('button[type="submit"]');
     if(btn) { btn.innerText = "Creando Perfil en la Nube..."; btn.disabled = true; }
 
-    // Determine initial status based on domain BEFORE saving
-    const institutionalDomains = ['@utmatamoros.edu.mx', '@tecvictoria.edu.mx', '@cetis130.edu.mx'];
-    const isInstitutional = institutionalDomains.some(domain => emailStr.endsWith(domain));
-    const initialStatus = isInstitutional ? 'B2B' : 'GRATIS';
+    const nombre  = document.getElementById('regName').value;
+    const escuela = document.getElementById('regUni').value;
+    const equipo  = document.getElementById('regTeam').value || 'N/A';
+
+    // ── Step 1: Check if any ACTIVE, non-expired license exists for this email domain ──
+    const emailDomain = '@' + emailStr.split('@')[1];
+    let licenciaCodigo = null;
+    let rango = 'GRATIS';
+
+    try {
+        const { data: licData } = await window.db.rpc('get_active_license', { p_domain: emailDomain });
+        if (licData && licData.length > 0) {
+            licenciaCodigo = licData[0].codigo;
+            rango = 'B2B';
+        }
+    } catch(e) {
+        console.warn('License lookup failed (non-critical):', e);
+    }
 
     const newProfile = {
-        email: emailStr,
-        nombre: document.getElementById('regName').value,
-        escuela: document.getElementById('regUni').value,
-        equipo: document.getElementById('regTeam').value || 'N/A',
-        rango: initialStatus,
-        contrasena_hash: 'NOPASSWORD_MVP' // MVP Auto-login
+        email:           emailStr,
+        nombre:          nombre,
+        escuela:         escuela,
+        equipo:          equipo,
+        rango:           rango,
+        licencia_codigo: licenciaCodigo,
+        contrasena_hash: 'NOPASSWORD_MVP'
     };
 
     try {
         const { data, error } = await window.db.from('perfiles').insert([newProfile]).select();
         if (error) throw error;
-        
-        // Si era institucional, intentamos descontar una licencia asíncronamente (Mock parcial en Supabase B2B view)
-        if (isInstitutional) {
-            const domainMatch = institutionalDomains.find(d => emailStr.endsWith(d));
-            await window.db.from('licencias_b2b')
-                .update({ asientos_usados: 1 }) // Simplify update for prototype
-                .eq('institucion', 'Universidad Autónoma de Tamaulipas');
+
+        if (licenciaCodigo) {
+            const { data: seatOk } = await window.db.rpc('increment_asientos', { p_codigo: licenciaCodigo });
+            if (!seatOk) {
+                await window.db.from('perfiles').update({ rango: 'GRATIS', licencia_codigo: null }).eq('email', emailStr);
+                newProfile.rango = 'GRATIS';
+                showToast('Licencia institucional sin asientos disponibles. Cuenta creada como GRATIS.', 'warning');
+            }
         }
 
-        processLoginSuccess(emailStr, data[0]);
+        processLoginSuccess(emailStr, { ...data[0], rango: newProfile.rango });
 
-        // 🔔 SEND WELCOME EMAIL (Non-blocking — fire and forget)
         fetch('/api/send-welcome', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nombre: newProfile.nombre,
-                email: newProfile.email,
-                rango: newProfile.rango
-            })
-        }).then(r => r.json())
-          .then(d => console.log('📧 Welcome email sent:', d.id || d))
-          .catch(e => console.warn('Email service unavailable (non-critical):', e));
+            body: JSON.stringify({ nombre, email: emailStr, rango: newProfile.rango })
+        }).then(r => r.json()).catch(e => console.warn('Email service down:', e));
 
     } catch(err) {
         console.error(err);
-        alert('Error crítico de escritura en Base de Datos (Supabase).');
+        showToast('Error al crear perfil.', 'error');
         if(btn) { btn.innerText = "Crear Cuenta y Acceder"; btn.disabled = false; }
     }
 }
+
+function showB2BCheckout() {
+    const modal = document.getElementById('checkoutModal');
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:500px; text-align:left;">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div style="text-align:center;margin-bottom:1.5rem;">
+                <h2 style="color:var(--accent-blue)">${ICONS.security} Licencia Institucional</h2>
+                <p style="color:#A0A0A0;font-size:0.9rem">Adquiere asientos para tu equipo o universidad. $20 USD por asiento al año.</p>
+            </div>
+            <form onsubmit="handleStripeB2B(event)">
+                <div class="form-group">
+                    <label>Nombre de la Institución</label>
+                    <input type="text" id="b2bInst" required placeholder="Ej. Universidad Autónoma de Tamaulipas">
+                </div>
+                <div class="form-group">
+                    <label>Dominio de Correo Autorizado</label>
+                    <input type="text" id="b2bDomain" required placeholder="Ej. @utmatamoros.edu.mx">
+                    <p style="font-size:0.75rem;color:#666;margin-top:0.3rem">Los alumnos con este dominio serán vinculados automáticamente.</p>
+                </div>
+                <div class="flex-row">
+                    <div class="form-group">
+                        <label>Número de Asientos</label>
+                        <input type="number" id="b2bSeats" min="10" max="500" value="10" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email de Contacto (Facturación)</label>
+                        <input type="email" id="b2bEmail" required value="${userEmail || ''}">
+                    </div>
+                </div>
+                <div style="background:rgba(0,180,216,0.1);padding:1rem;border-radius:8px;margin:1rem 0;border:1px solid rgba(0,180,216,0.2)">
+                    <div style="display:flex;justify-content:space-between;font-weight:700;">
+                        <span>Inversión Total:</span>
+                        <span id="b2bTotal">$200 USD</span>
+                    </div>
+                    <p style="font-size:0.75rem;margin-top:0.3rem">Pago único anual. Incluye Panel de Maestro y Soporte Técnico.</p>
+                </div>
+                <button type="submit" class="btn-primary" style="width:100%;background:var(--accent-blue);border-color:var(--accent-blue)">Proceder al Pago Seguro</button>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('b2bSeats').addEventListener('input', (e) => {
+        const seats = parseInt(e.target.value) || 0;
+        document.getElementById('b2bTotal').innerText = `$${seats * 20} USD`;
+    });
+}
+
+async function handleStripeB2B(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.innerText = "Cargando Stripe...";
+    btn.disabled = true;
+
+    const payload = {
+        institucion: document.getElementById('b2bInst').value,
+        dominio_email: document.getElementById('b2bDomain').value,
+        asientos: document.getElementById('b2bSeats').value,
+        contacto_email: document.getElementById('b2bEmail').value
+    };
+
+    try {
+        const resp = await fetch('/api/stripe-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'Error al conectar con Stripe');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        btn.innerText = "Proceder al Pago Seguro";
+        btn.disabled = false;
+    }
+}
+
+
 
 function processLoginSuccess(emailStr, profileData = null) {
     // Save to global frontend state
