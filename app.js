@@ -604,63 +604,126 @@ function showRegistrationForm(emailStr) {
 
 async function handleRegistration(e, emailStr) {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    if(btn) { btn.innerText = "Creando Perfil en la Nube..."; btn.disabled = true; }
-
     const nombre  = document.getElementById('regName').value;
     const escuela = document.getElementById('regUni').value;
     const equipo  = document.getElementById('regTeam').value || 'N/A';
+    const major   = document.getElementById('regMajor').value;
+    const role    = document.getElementById('regRole').value;
 
-    // ── Step 1: Check if any ACTIVE, non-expired license exists for this email domain ──
-    const emailDomain = '@' + emailStr.split('@')[1];
-    let licenciaCodigo = null;
-    let rango = 'GRATIS';
+    if(btn) { btn.innerText = "Enviando Código..."; btn.disabled = true; }
 
+    // 1. Send Verification Email
     try {
-        const { data: licData } = await window.db.rpc('get_active_license', { p_domain: emailDomain });
-        if (licData && licData.length > 0) {
-            licenciaCodigo = licData[0].codigo;
-            rango = 'B2B';
+        const resp = await fetch('/api/send-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: emailStr, nombre })
+        });
+        
+        if (!resp.ok) {
+            const errData = await resp.json();
+            throw new Error(errData.error || 'Error al enviar código.');
         }
-    } catch(e) {
-        console.warn('License lookup failed (non-critical):', e);
+
+        showVerificationModal(emailStr, { nombre, escuela, equipo, major, role });
+
+    } catch(err) {
+        showToast(err.message, 'error');
+        if(btn) { btn.innerText = "Crear Cuenta y Acceder"; btn.disabled = false; }
+    }
+}
+
+function showVerificationModal(email, userData) {
+    const modal = document.getElementById('checkoutModal');
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:450px; text-align:center;">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div style="font-size:3rem;margin-bottom:1rem;">✉️</div>
+            <h2 style="margin-bottom:0.5rem">Verifica tu Correo</h2>
+            <p style="color:#A0A0A0;font-size:0.9rem;margin-bottom:1.5rem;">
+                Hemos enviado un código de 6 dígitos a <strong>${email}</strong>.<br>Búscalo en tu bandeja de entrada o spam.
+            </p>
+            <div class="form-group">
+                <input type="text" id="verifyCode" maxlength="6" placeholder="000000" 
+                    style="font-size:2rem; letter-spacing:8px; text-align:center; font-weight:800; border:2px solid var(--accent-blue);">
+            </div>
+            <button class="btn-primary" style="width:100%;margin-top:1rem;background:#00C853;border-color:#00C853;" 
+                onclick='verifyAndComplete("${email}", ${JSON.stringify(userData)})'>Validar y Finalizar</button>
+            <p style="margin-top:1rem; font-size:0.8rem; color:#666; cursor:pointer;" onclick="showRegistrationForm('${email}')">← Volver / Corregir Correo</p>
+        </div>
+    `;
+    setTimeout(()=>document.getElementById('verifyCode')?.focus(), 100);
+}
+
+async function verifyAndComplete(email, userData) {
+    const code = document.getElementById('verifyCode').value.trim();
+    if (code.length !== 6) {
+        showToast('Código inválido. Deben ser 6 dígitos.', 'warning');
+        return;
     }
 
-    const newProfile = {
-        email:           emailStr,
-        nombre:          nombre,
-        escuela:         escuela,
-        equipo:          equipo,
-        rango:           rango,
-        licencia_codigo: licenciaCodigo,
-        contrasena_hash: 'NOPASSWORD_MVP'
-    };
+    const btn = document.querySelector('#checkoutModal .btn-primary');
+    btn.innerText = "Verificando..."; btn.disabled = true;
 
     try {
+        // 1. Check code in Supabase
+        const { data: verif, error: vErr } = await window.db
+            .from('verificaciones')
+            .select('*')
+            .eq('email', email)
+            .eq('codigo', code)
+            .single();
+
+        if (vErr || !verif) {
+            throw new Error('Código incorrecto o expirado.');
+        }
+
+        // 2. Clear verification record
+        await window.db.from('verificaciones').delete().eq('email', email);
+
+        // 3. Final Registration (Logic moved from handleRegistration)
+        const emailDomain = '@' + email.split('@')[1];
+        let licenciaCodigo = null;
+        let rango = 'GRATIS';
+
+        try {
+            const { data: licData } = await window.db.rpc('get_active_license', { p_domain: emailDomain });
+            if (licData && licData.length > 0) {
+                licenciaCodigo = licData[0].codigo;
+                rango = 'B2B';
+            }
+        } catch(e) {}
+
+        const newProfile = {
+            email:           email,
+            nombre:          userData.nombre,
+            escuela:         userData.escuela,
+            equipo:          userData.equipo,
+            rango:           rango,
+            licencia_codigo: licenciaCodigo,
+            contrasena_hash: 'VERIFIED_USER'
+        };
+
         const { data, error } = await window.db.from('perfiles').insert([newProfile]).select();
         if (error) throw error;
 
         if (licenciaCodigo) {
-            const { data: seatOk } = await window.db.rpc('increment_asientos', { p_codigo: licenciaCodigo });
-            if (!seatOk) {
-                await window.db.from('perfiles').update({ rango: 'GRATIS', licencia_codigo: null }).eq('email', emailStr);
-                newProfile.rango = 'GRATIS';
-                showToast('Licencia institucional sin asientos disponibles. Cuenta creada como GRATIS.', 'warning');
-            }
+            await window.db.rpc('increment_asientos', { p_codigo: licenciaCodigo });
         }
 
-        processLoginSuccess(emailStr, { ...data[0], rango: newProfile.rango });
+        processLoginSuccess(email, { ...data[0], rango: newProfile.rango });
+        showToast('¡Cuenta verificada y creada exitosamente!', 'success');
 
+        // Welcome Email
         fetch('/api/send-welcome', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, email: emailStr, rango: newProfile.rango })
-        }).then(r => r.json()).catch(e => console.warn('Email service down:', e));
+            body: JSON.stringify({ nombre: userData.nombre, email, rango: newProfile.rango })
+        }).catch(e => console.warn('Welcome email failed:', e));
 
     } catch(err) {
-        console.error(err);
-        showToast('Error al crear perfil.', 'error');
-        if(btn) { btn.innerText = "Crear Cuenta y Acceder"; btn.disabled = false; }
+        showToast(err.message, 'error');
+        btn.innerText = "Validar y Finalizar"; btn.disabled = false;
     }
 }
 
