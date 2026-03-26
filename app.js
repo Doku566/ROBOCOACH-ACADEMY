@@ -604,6 +604,7 @@ function showRegistrationForm(emailStr) {
 
 async function handleRegistration(e, emailStr) {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
     const nombre  = document.getElementById('regName').value;
     const escuela = document.getElementById('regUni').value;
     const equipo  = document.getElementById('regTeam').value || 'N/A';
