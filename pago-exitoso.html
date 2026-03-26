@@ -86,21 +86,40 @@
     <div class="container">
         <div class="icon">🏆</div>
         <h1>¡Licencia Activada!</h1>
-        <div id="instName" class="badge">Cargando institución...</div>
-        <p>
-            El pago se ha procesado correctamente. Los miembros de tu institución ya pueden registrarse usando su correo institucional para obtener acceso Premium automático.
+        <div id="instName" class="badge" style="display:none">Cargando...</div>
+        <p id="successMsg">
+            El pago se ha procesado correctamente. Ya puedes acceder a todo el material premium de la academia.
         </p>
-        <p style="font-size: 0.85rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
-            Se ha enviado un recibo y los detalles de la licencia al correo de contacto proporcionado.
+        <p id="subMsg" style="font-size: 0.85rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
+            Se ha enviado un recibo a tu correo.
         </p>
         <a href="/" class="btn">Volver a la Academia</a>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
+        const type = params.get('type');
         const inst = params.get('inst');
-        if (inst) {
-            document.getElementById('instName').innerText = decodeURIComponent(inst);
+        const titleEl = document.querySelector('h1');
+        const badgeEl = document.getElementById('instName');
+        const msgEl = document.getElementById('successMsg');
+        const subMsgEl = document.getElementById('subMsg');
+
+        if (type === 'b2b') {
+            titleEl.innerText = "¡Licencia B2B Activada!";
+            badgeEl.style.display = 'inline-block';
+            badgeEl.innerText = inst ? decodeURIComponent(inst) : 'Institución Registrada';
+            msgEl.innerText = "El pago se ha procesado correctamente. Los miembros de tu institución ya pueden registrarse usando su correo institucional para obtener acceso Premium automático.";
+            subMsgEl.innerText = "Se ha enviado un recibo y los detalles de la licencia al correo de contacto proporcionado.";
+        } else {
+            titleEl.innerText = "¡Ya eres PRO!";
+            badgeEl.style.display = 'inline-block';
+            badgeEl.innerText = "Acceso Individual Activado";
+            badgeEl.style.background = "rgba(227, 27, 35, 0.1)";
+            badgeEl.style.color = "var(--vex-red)";
+            badgeEl.style.borderColor = "rgba(227, 27, 35, 0.2)";
+            msgEl.innerText = "¡Felicidades! Tu cuenta ha sido mejorada al nivel PRO. Ya tienes acceso a todos los módulos avanzados, exámenes y certificados.";
+            subMsgEl.innerText = "Reinicia la academia para ver los cambios aplicados en tu perfil.";
         }
     </script>
 </body>

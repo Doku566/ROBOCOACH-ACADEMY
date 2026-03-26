@@ -70,7 +70,7 @@ module.exports = async function handler(req, res) {
                 quantity: 1,
             }],
             metadata: { type: 'b2b', institucion, dominio_email, asientos: String(seats), contacto_email },
-            success_url: `${baseUrl}/pago-exitoso.html?session_id={CHECKOUT_SESSION_ID}&type=b2b`,
+            success_url: `${baseUrl}/pago-exitoso.html?session_id={CHECKOUT_SESSION_ID}&type=b2b&inst=${encodeURIComponent(institucion)}`,
             cancel_url: `${baseUrl}/#precios`,
             invoice_creation: { enabled: true },
         });
