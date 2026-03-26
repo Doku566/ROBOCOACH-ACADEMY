@@ -497,24 +497,26 @@ async function checkAuthStep() {
     if(btn) { btn.innerText = "Consultando BD Nube..."; btn.disabled = true; }
 
     try {
-        const { data, error } = await window.db.from('perfiles').select('*, licencias_b2b(*)').eq('email', emailStr);
+        // Step 1: Get Profile
+        const { data, error } = await window.db.from('perfiles').select('*').eq('email', emailStr);
         if (error) throw error;
 
         if (data && data.length > 0) {
             const profile = data[0];
             
-            // ── Phase 8: Verify License Validity on Login ──
+            // Step 2: Get License if applicable (Safe query, doesn't require pre-defined GORM-style relationship)
             if (profile.rango === 'B2B' && profile.licencia_codigo) {
-                const lic = profile.licencias_b2b;
-                const isExpired = lic ? new Date(lic.fecha_expiracion) < new Date() : true;
-                const isActive = lic ? lic.activa : false;
+                const { data: lic } = await window.db.from('licencias_b2b').select('*').eq('codigo', profile.licencia_codigo).single();
+                
+                if (lic) {
+                    const isExpired = new Date(lic.fecha_expiracion) < new Date();
+                    const isActive = lic.activa;
 
-                if (isExpired || !isActive) {
-                    console.warn('License expired or inactive. Downgrading session.');
-                    profile.rango = 'GRATIS';
-                    // Optional: Update DB to reflect downgrade
-                    await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', profile.id);
-                    showToast('Tu licencia institucional ha expirado. Acceso limitado a GRATIS.', 'warning');
+                    if (isExpired || !isActive) {
+                        profile.rango = 'GRATIS';
+                        await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', profile.id);
+                        showToast('Licencia institucional expirada. Nivel: GRATIS.', 'warning');
+                    }
                 }
             }
 
@@ -523,6 +525,7 @@ async function checkAuthStep() {
             showRegistrationForm(emailStr);
         }
     } catch(err) {
+
         console.error(err);
         showToast('Error de conexión con Supabase.', 'error');
         if(btn) { btn.innerText = "Continuar"; btn.disabled = false; }

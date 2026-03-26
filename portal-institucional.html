@@ -202,18 +202,26 @@
                 const { data: myStudents, error } = await window.db
                     .from('perfiles')
                     .select('*')
-                    .like('email', `%@${domain}`)
-                    .neq('email', userEmail); // Exclude the teacher
+                    .eq('licencia_codigo', userProfile.licencia_codigo) // Use the FK
+                    .neq('email', userEmail); 
 
                 if (error) throw error;
                 
-                // Extraer KPIs Institutional mock if needed from licencias_b2b
-                const { data: licData } = await window.db.from('licencias_b2b').select('*').limit(1);
-                const totalLicenses = licData && licData[0] ? licData[0].total_asientos : 100;
-                const used = myStudents.length;
+                // 4. Fetch the specific license data for this institution
+                const { data: licData } = await window.db
+                    .from('licencias_b2b')
+                    .select('*')
+                    .eq('codigo', userProfile.licencia_codigo)
+                    .single();
 
+                const totalLicenses = licData ? licData.total_asientos : 0;
+                const used = myStudents.length;
+                const instName = licData ? licData.institucion : 'Mi Institución';
+
+                document.getElementById('uniName').innerText = instName;
+                document.getElementById('kpiTotal').innerText = totalLicenses;
                 document.getElementById('kpiUsed').innerText = used;
-                document.getElementById('kpiAvail').innerText = totalLicenses - used;
+                document.getElementById('kpiAvail').innerText = Math.max(0, totalLicenses - used);
 
                 const tbody = document.getElementById('studentsBody');
                 
