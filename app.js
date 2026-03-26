@@ -324,27 +324,7 @@ function navigateLesson(id) {
 }
 
 // === PRO NUDGE ===
-async function showProNudge() {
-    // 1. Try to hit the real Backend API for Stripe Checkout
-    try {
-        const response = await fetch('http://localhost:3000/api/create-checkout-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userEmail: userEmail || 'invitado@vex.academy' })
-        });
-        
-        const data = await response.json();
-        
-        if (data.url) {
-            // Success: Redireccionar a Stripe
-            window.location.href = data.url;
-            return;
-        }
-    } catch (e) {
-        console.warn("🛡️ Servidor Backend Stripe desconectado. Cayendo al Modo Simulador Local MOCK.");
-    }
-
-    // 2. Fallback if backend is down (Local Simulation)
+function showProNudge() {
     const modal = document.getElementById('checkoutModal');
     modal.style.display = 'flex';
     modal.style.padding = '2rem';
@@ -352,51 +332,113 @@ async function showProNudge() {
         <div class="modal-content pro-nudge">
             <span class="close" onclick="closeModal()">&times;</span>
             <div class="nudge-icon">${ICONS.rocket}</div>
-            <h2>¡Buen trabajo, programador!</h2>
+            <h2>¡Continúa tu Aprendizaje!</h2>
             <p>Has completado el acceso gratuito. Los siguientes módulos incluyen <strong>PID, Odometría, Redes Neuronales y preparación para jueces.</strong></p>
             <div style="background:rgba(227,27,35,0.1);padding:1.5rem;border-radius:12px;margin:1.5rem 0;border:1px solid var(--vex-red)">
-                <p style="font-weight:700;color:var(--vex-red)">ACCESO COMPLETO — $29/mes</p>
-                <p>Incluye todos los módulos, ejercicios, exámenes y certificado de finalización.</p>
+                <p style="font-weight:700;color:var(--vex-red)">ACCESO INDIVIDUAL PRO — $20 USD</p>
+                <p>Pago único. Acceso de por vida a todos los módulos, exámenes y certificados.</p>
             </div>
-            <button class="btn-primary" style="width:100%" onclick="showCheckout()">Desbloquear Academia PRO</button>
+            <button class="btn-primary" style="width:100%" onclick="handleIndividualCheckout()">Mejorar a PRO Individual</button>
+            <p style="text-align:center;margin-top:1rem;font-size:0.8rem;color:#A0A0A0;cursor:pointer" onclick="showB2BCheckout()">¿Eres maestro? Ver Planes para Escuelas</p>
         </div>
     `;
 }
 
+async function handleIndividualCheckout() {
+    if (!userEmail) {
+        showToast('Debes iniciar sesión para comprar una suscripción PRO.', 'warning');
+        showLogin();
+        return;
+    }
+
+    const modal = document.getElementById('checkoutModal');
+    const originalHTML = modal.innerHTML;
+    modal.innerHTML = `<div style="display:flex;height:300px;align-items:center;justify-content:center;flex-direction:column;gap:1.5rem;">
+        <div class="spinner"></div>
+        <p style="color:var(--accent-blue);font-weight:600">Generando Sesión Segura de Stripe...</p>
+    </div>`;
+
+    try {
+        const resp = await fetch('/api/stripe-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                type: 'individual',
+                contacto_email: userEmail 
+            })
+        });
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text.includes('STRIPE_SECRET_KEY') ? 'Error de Configuración en el Servidor' : 'Error al conectar con Stripe');
+        }
+
+        const data = await resp.json();
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error(data.error || 'No se pudo generar el enlace de pago.');
+        }
+    } catch (err) {
+        showToast(err.message, 'error');
+        modal.innerHTML = originalHTML; // Restore
+    }
+}
+
 // === CHECKOUT ===
-function showCheckout() {
+// === B2B CHECKOUT ===
+function showB2BCheckout() {
     const modal = document.getElementById('checkoutModal');
     modal.style.display = 'flex';
     modal.style.padding = '2rem';
     modal.innerHTML = `
-        <div class="modal-content">
+        <div class="modal-content" style="max-width:600px;">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h2>Suscripción VEX Academy PRO</h2>
-            <p>Acceso total a todos los módulos de C++, PID, Odometría y Preparación para Jueces.</p>
-            <form id="paymentForm" onsubmit="handlePayment(event)">
+            <div style="text-align:center;margin-bottom:1.5rem">
+                <h2 style="margin-bottom:0.5rem">Licencia Institucional B2B</h2>
+                <p style="color:#A0A0A0;font-size:0.9rem">Activa el acceso para toda tu escuela usando el dominio de correo oficial.</p>
+            </div>
+            
+            <form onsubmit="handleStripeB2B(event)">
                 <div class="form-group">
-                    <label>Nombre del Titular</label>
-                    <input type="text" required placeholder="Ej. Juan Pérez" id="cardName" autocomplete="cc-name">
+                    <label>Nombre de la Institución</label>
+                    <input type="text" id="b2bInst" required placeholder="Ej. Universidad Tecnológica de Matamoros">
                 </div>
                 <div class="form-group">
-                    <label>Número de Tarjeta</label>
-                    <input type="text" required placeholder="XXXX XXXX XXXX XXXX" maxlength="19" id="cardNumber" inputmode="numeric">
+                    <label>Dominio de Correo Autorizado</label>
+                    <input type="text" id="b2bDomain" required placeholder="Ej. @utmatamoros.edu.mx">
                 </div>
                 <div class="flex-row">
                     <div class="form-group">
-                        <label>Vencimiento</label>
-                        <input type="text" required placeholder="MM/YY" maxlength="5" pattern="(0[1-9]|1[0-2])\/[0-9]{2}">
+                        <label>Cantidad de Asientos (Mínimo 10)</label>
+                        <input type="number" id="b2bSeats" value="10" min="10" max="500" required>
                     </div>
                     <div class="form-group">
-                        <label>CVC</label>
-                        <input type="password" required maxlength="3" placeholder="***" inputmode="numeric">
+                        <label>Email de Contacto Administrativo</label>
+                        <input type="email" id="b2bEmail" value="${userEmail || ''}" required placeholder="director@escuela.com">
                     </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width:100%">Pagar $29 USD</button>
+                
+                <div style="background:rgba(0,180,216,0.1);padding:1rem;border-radius:12px;border:1px solid var(--accent-blue);margin:1rem 0;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:600">Total Anual Estimado:</span>
+                        <span id="b2bTotal" style="font-size:1.5rem;font-weight:800;color:var(--accent-blue)">$200 USD</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" style="width:100%;background:var(--accent-blue);border-color:var(--accent-blue)">Ir a Pago Seguro en Stripe</button>
+                <p style="text-align:center;margin-top:1rem;font-size:0.8rem;color:#A0A0A0;cursor:pointer" onclick="handleIndividualCheckout()">¿Solo para ti? Comprar Plan Individual PRO</p>
             </form>
-            <p class="security-note">${ICONS.security} Encriptación AES-256 SSL Segura</p>
         </div>
     `;
+
+    document.getElementById('b2bSeats').addEventListener('input', (e) => {
+        const seats = parseInt(e.target.value) || 0;
+        document.getElementById('b2bTotal').innerText = `$${seats * 20} USD`;
+    });
+}
+function showCheckout() {
+    // Legacy redirect to the new consolidated individual flow
+    handleIndividualCheckout();
 }
 // === PREMIUM UX / TOASTS ===
 window.showToast = function(message, type = 'success') {
@@ -431,34 +473,9 @@ window.showToast = function(message, type = 'success') {
 };
 
 function handlePayment(e) {
+    // This function is now deprecated in favor of Stripe Checkout redirects.
     e.preventDefault();
-    // Validate card number (basic Luhn check)
-    const cardVal = document.getElementById('cardNumber').value.replace(/\s/g,'');
-    if (!/^\d{16}$/.test(cardVal)) {
-        showToast('Número de tarjeta inválido. Verifica e intenta de nuevo.', 'error');
-        return;
-    }
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerHTML = '<span class="spinner" style="display:inline-block;width:1rem;height:1rem;border:2px solid white;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span> Procesando...';
-    btn.disabled = true;
-    setTimeout(() => {
-        isSubscribed = true;
-        localStorage.setItem('isSubscribed', 'true');
-        renderCourses();
-        const modal = document.getElementById('checkoutModal');
-        modal.innerHTML = `
-            <div class="modal-content" style="text-align:center;max-width:500px;">
-                <span class="close" onclick="closeModal()">&times;</span>
-                <div style="font-size:3rem;margin-bottom:1rem;color:#00C853">${ICONS.check}</div>
-                <h2 style="margin-bottom:1rem">¡Suscripción Exitosa!</h2>
-                <p style="color:#A0A0A0;margin:1rem 0">Has desbloqueado el acceso total a la Academia PRO. Todos los módulos técnicos de competencia ahora están disponibles para ti.</p>
-                <div style="background:rgba(0,200,83,0.1);padding:1rem;border-radius:8px;border:1px solid rgba(0,200,83,0.3);margin:1.5rem 0;">
-                    <span style="color:#00C853;font-weight:600;font-size:0.9rem">✔ Pago Verificado — Acceso Inmediato</span>
-                </div>
-                <button class="btn-primary" style="width:100%;margin-top:1rem" onclick="closeModal()">Adentrarse a la Academia</button>
-            </div>
-        `;
-    }, 1500);
+    handleIndividualCheckout();
 }
 
 // === SHOW LOGIN / AUTH GATEWAY ===
@@ -698,7 +715,7 @@ function showB2BCheckout() {
 async function handleStripeB2B(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.innerText = "Cargando Stripe...";
+    btn.innerText = "Conectando con Servidor...";
     btn.disabled = true;
 
     const payload = {
@@ -714,14 +731,33 @@ async function handleStripeB2B(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            let errorMsg = `Error del Servidor (${resp.status})`;
+            try {
+                const errorData = JSON.parse(text);
+                errorMsg = errorData.error || errorMsg;
+            } catch(jsonErr) {
+                // If it contains Stripe keywords, it's a configuration issue
+                if (text.includes('STRIPE_SECRET_KEY')) {
+                    errorMsg = "⚠️ Configuración Incompleta: Falta la 'Stripe Secret Key' en tu panel de Vercel.";
+                } else {
+                    errorMsg = `Error Técnico: ${text.substring(0, 60)}...`;
+                }
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await resp.json();
         if (data.url) {
             window.location.href = data.url;
         } else {
-            throw new Error(data.error || 'Error al conectar con Stripe');
+            throw new Error(data.error || 'Sesión de pago no generada.');
         }
     } catch (err) {
         showToast(err.message, 'error');
+        console.error('Checkout error:', err);
         btn.innerText = "Proceder al Pago Seguro";
         btn.disabled = false;
     }

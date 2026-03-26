@@ -2,7 +2,9 @@
 // Sends a branded HTML welcome email via Resend API
 // Environment Variable required: RESEND_API_KEY (set in Vercel project settings)
 
-export default async function handler(req, res) {
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
+module.exports = async function handler(req, res) {
     // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');

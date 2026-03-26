@@ -250,7 +250,6 @@
         </div>
     </div>
     
-    <!-- License Assignment Modal -->
     <div id="licenseModal" class="modal admin-modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('licenseModal')">&times;</span>
@@ -264,6 +263,10 @@
                 <div class="form-group">
                     <label>Dominio Oficial (@)</label>
                     <input type="text" id="instDomain" required placeholder="@utmatamoros.edu.mx">
+                </div>
+                <div class="form-group">
+                    <label>Dominio de Email Autorizado (Ej: @tecvictoria.edu.mx)</label>
+                    <input type="text" id="instEmailDomain" required placeholder="@tecvictoria.edu.mx">
                 </div>
                 <div class="form-group">
                     <label>Cantidad de Licencias Adquiridas</label>
@@ -442,11 +445,11 @@
                     return `
                     <tr>
                         <td style="font-weight:600">${sanitize(lic.institucion)}</td>
-                        <td style="color:#A0A0A0">${sanitize(lic.codigo)}</td>
+                        <td style="color:#A0A0A0">${sanitize(lic.dominio_email)}</td>
                         <td>${lic.total_asientos}</td>
                         <td style="${isFull ? 'color:var(--vex-red);font-weight:700' : 'color:#00C853'}">${lic.asientos_usados}</td>
                         <td>${isFull ? '<span style="color:var(--vex-red)">AGOTADO</span>' : remaining}</td>
-                        <td><span class="status-badge status-free">Activo</span></td>
+                        <td><span class="status-badge status-free">${lic.activa ? 'Activo' : 'Inactivo'}</span></td>
                     </tr>`;
                 }).join('');
             } catch(err) {
@@ -578,7 +581,7 @@
             btn.disabled = true;
 
             const name = document.getElementById('instName').value;
-            const domain = document.getElementById('instDomain').value;
+            const emailDomain = document.getElementById('instEmailDomain').value;
             const quota = parseInt(document.getElementById('instQuota').value);
             const code = `${name.toUpperCase().replace(/\s+/g, '-').substring(0, 6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             
@@ -586,8 +589,10 @@
                 const { error } = await window.db.from('licencias_b2b').insert([{
                     codigo: code,
                     institucion: name,
+                    dominio_email: emailDomain,
                     total_asientos: quota,
-                    asientos_usados: 0
+                    asientos_usados: 0,
+                    activa: true
                 }]);
                 if (error) throw error;
                 

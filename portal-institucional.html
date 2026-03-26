@@ -96,8 +96,8 @@
             <div id="tab-students" class="tab-view" style="display:block;">
                 <div class="panel-header">
                     <div>
-                        <h1 id="uniName">Universidad Simulada (B2B)</h1>
-                        <p>Dominio Autorizado: @tecvictoria.edu.mx | Contrato Institucional</p>
+                        <h1 id="uniName">Cargando Institución...</h1>
+                        <p id="authorizedDomain">Verificando Dominio...</p>
                     </div>
                     <div>
                         <button class="btn-primary" onclick="generateInvite()">+ Generar Link Mágico</button>
@@ -219,6 +219,7 @@
                 const instName = licData ? licData.institucion : 'Mi Institución';
 
                 document.getElementById('uniName').innerText = instName;
+                document.getElementById('authorizedDomain').innerText = `Dominio Autorizado: ${licData ? licData.dominio_email : '@...'}`;
                 document.getElementById('kpiTotal').innerText = totalLicenses;
                 document.getElementById('kpiUsed').innerText = used;
                 document.getElementById('kpiAvail').innerText = Math.max(0, totalLicenses - used);
@@ -258,13 +259,21 @@
         }
 
         async function removeStudent(id, email) {
-            if(!confirm(`¿ESTÁS SEGURO? Estás a punto de revocar el acceso Premium a ${email}. Se le degradará el rango a GRATIS y consumirá sus privilegios de C++ avanzados. Recuperarás 1 asiento institucional.`)) return;
+            if(!confirm(`¿ESTÁS SEGURO?\n\nRevocar el acceso a ${email} hará lo siguiente:\n1. Se le quitará el rango B2B/PRO.\n2. Se liberará 1 asiento en tu licencia institucional.`)) return;
             
             try {
-                const { error } = await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', id);
-                if (error) throw error;
+                const userProfile = JSON.parse(localStorage.getItem('userProfile'));
                 
-                // Simulated UI update
+                // 1. Downgrade Student
+                const { error: updErr } = await window.db.from('perfiles')
+                    .update({ rango: 'GRATIS', licencia_codigo: null })
+                    .eq('id', id);
+                if (updErr) throw updErr;
+                
+                // 2. Atomically refund seat (decrement)
+                await window.db.rpc('decrement_asientos', { p_codigo: userProfile.licencia_codigo });
+
+                // 3. UI Update
                 document.getElementById(`row-${id}`).style.display = 'none';
                 
                 let currentUsed = parseInt(document.getElementById('kpiUsed').innerText);
@@ -272,51 +281,54 @@
                 document.getElementById('kpiUsed').innerText = currentUsed - 1;
                 document.getElementById('kpiAvail').innerText = currentAvail + 1;
                 
-                alert(`Conexión Segura: La licencia de ${email} ha sido revocada en la Nube exitosamente.`);
+                showToast(`Acceso revocado para ${email}. Asiento liberado.`, 'success');
             } catch(err) {
                 console.error(err);
-                alert("Error al intentar revocar perfil en base de datos.");
+                alert("Error técnico al intentar revocar perfil.");
             }
         }
 
+        // Helper for Toasts since this page doesn't have app.js loaded
+        function showToast(msg, type='info') {
+            alert(msg); // Placeholder for better UI if wanted
+        }
+
         function generateInvite() {
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            alert(`Link Mágico de Invitación Generado: \n\nhttps://robocoach.academy/join/${code}\n\nCopia y envía este enlace por WhatsApp/Correo a tus estudiantes para que se auto-inscriban. Consumirán 1 licencia de las disponibles.`);
+            const userProfile = JSON.parse(localStorage.getItem('userProfile'));
+            const domain = userProfile.email.split('@')[1];
+            const baseUrl = window.location.origin;
+            
+            const msg = `⚡ LINK DE REGISTRO INSTITUCIONAL ⚡\n\nPide a tus alumnos que se registren en:\n${baseUrl}\n\nREQUISITO: Deben usar su correo institucional (@${domain}).\n\nEl sistema les otorgará acceso Premium automáticamente vinculado a tu licencia.`;
+            
+            // Simple copy to clipboard
+            navigator.clipboard.writeText(`${baseUrl}`).then(() => {
+                alert(msg + "\n\n(La URL base se ha copiado al portapapeles)");
+            });
         }
 
-        function logout() {
-            window.location.href = 'index.html';
-        }
+        async function exportCSV() {
+            const userProfile = JSON.parse(localStorage.getItem('userProfile'));
+            
+            const { data: students, error } = await window.db.from('perfiles')
+                .select('*')
+                .eq('licencia_codigo', userProfile.licencia_codigo);
 
-        function exportCSV() {
-            let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-            const myStudents = usersDB.filter(u => u.status === 'inst' && (u.email.includes('@tecvictoria.edu.mx') || u.email.includes('instituto.edu')));
+            if (error || !students) return alert("Error al obtener datos para exportar.");
+
+            let csvContent = "data:text/csv;charset=utf-8,Nombre,Correo,Rango,Modulos Terminados,Minutos Estudiados,Fecha Registro\n";
             
-            let csvContent = "data:text/csv;charset=utf-8,Nombre,Correo,Estado,ModulosCompletados,MinutosEstudiados\n";
-            
-            myStudents.forEach(u => {
-                let progress = { completed: [], timeSpent: 0 };
-                try {
-                    const saved = localStorage.getItem(`progress_${u.email}`);
-                    if(saved) progress = JSON.parse(saved);
-                } catch(e) {}
-                
-                const nameStr = u.profileData && u.profileData.name ? u.profileData.name : u.email.split('@')[0];
-                const mods = progress.completed ? progress.completed.length : 0;
-                const mins = Math.floor(progress.timeSpent / 60);
-                
-                csvContent += `${nameStr},${u.email},${u.status},${mods},${mins}\n`;
+            students.forEach(u => {
+                csvContent += `"${u.nombre}","${u.email}","${u.rango}",${u.modulos_terminados},${u.tiempo_estudiado_minutos},"${u.fecha_registro}"\n`;
             });
             
-            var encodedUri = encodeURI(csvContent);
-            var link = document.createElement("a");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "reporte_estudiantes.csv");
+            link.setAttribute("download", `Reporte_RoboCoach_${userProfile.licencia_codigo}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
-
         function switchTab(tabId) {
             document.querySelectorAll('.tab-view').forEach(t => t.style.display = 'none');
             document.querySelectorAll('.sidebar-menu li').forEach(l => l.classList.remove('active'));
