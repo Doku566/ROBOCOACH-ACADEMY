@@ -1264,8 +1264,9 @@ function updatePricingUI() {
         if (!button) return;
 
         if ((isPro && !isExpired) || isPending) {
-            if ((title.includes('PRO Individual') && (userProfile?.rango === 'PRO' || isPending)) || 
-                (title.includes('Institucional') && userProfile?.rango === 'B2B')) {
+            const upperTitle = title.toUpperCase();
+            if ((upperTitle.includes('PRO INDIVIDUAL') && (userProfile?.rango === 'PRO' || isPending)) || 
+                (upperTitle.includes('INSTITUCIONAL') && userProfile?.rango === 'B2B')) {
                 button.innerText = isPending ? 'Procesando Pago...' : 'Tu Plan Actual';
                 button.disabled = true;
                 button.className = 'btn-secondary';
