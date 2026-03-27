@@ -43,7 +43,7 @@ module.exports = async function handler(req, res) {
             await supabase.from('perfiles').update({ 
                 rango: 'PRO',
                 fecha_expiracion: expirationDate.toISOString()
-            }).eq('email', email);
+            }).ilike('email', email.trim());
             
             console.log(`✅ Individual PRO activated: ${email} (Expires: ${expirationDate.toISOString()})`);
         } 
