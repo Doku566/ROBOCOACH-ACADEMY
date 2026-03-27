@@ -939,6 +939,7 @@ function logoutUser() {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('isSubscribed');
     localStorage.removeItem('userProfile');
+    localStorage.removeItem('pending_pro_sync');
     renderUserNav();
     renderCourses();
     updatePricingUI();
@@ -1090,18 +1091,20 @@ function init() {
         });
 
         if (window.location.search.includes('session_id') || window.location.href.includes('success')) {
+            localStorage.setItem('pending_pro_sync', 'true');
             showToast('¡Pago recibido! Sincronizando tu acceso PRO...', 'info');
             setTimeout(() => {
                 // Re-consulta final tras unos segundos (latencia de webhook)
                 window.db.from('perfiles').select('*').eq('email', userEmail).single().then(({data}) => {
-                    if (data) {
+                    if (data && data.rango === 'PRO') {
                         localStorage.setItem('userProfile', JSON.stringify(data));
+                        localStorage.removeItem('pending_pro_sync');
                         renderUserNav();
                         updatePricingUI();
-                        if(data.rango === 'PRO') showToast('¡Modo PRO Activado! Bienvenido.', 'success');
+                        showToast('¡Modo PRO Activado! Bienvenido.', 'success');
                     }
                 });
-            }, 3000);
+            }, 4000);
         }
 
         userProgress = JSON.parse(localStorage.getItem(`progress_${userEmail}`)) || { completed: [], timeSpent: 0 };
@@ -1213,6 +1216,7 @@ function updatePricingUI() {
     const userProfile = JSON.parse(localStorage.getItem('userProfile'));
     const isPro = userProfile && (userProfile.rango === 'PRO' || userProfile.rango === 'B2B' || userProfile.rango === 'VEX INSTRUCTOR');
     const isExpired = userProfile && userProfile.fecha_expiracion && new Date(userProfile.fecha_expiracion) < new Date();
+    const isPending = localStorage.getItem('pending_pro_sync') === 'true';
 
     const prices = document.querySelectorAll('.price-card');
     prices.forEach(card => {
@@ -1220,14 +1224,14 @@ function updatePricingUI() {
         const button = card.querySelector('button');
         if (!button) return;
 
-        if (isPro && !isExpired) {
-            if ((title.includes('PRO Individual') && userProfile.rango === 'PRO') || 
-                (title.includes('Institucional') && userProfile.rango === 'B2B')) {
-                button.innerText = 'Tu Plan Actual';
+        if ((isPro && !isExpired) || isPending) {
+            if ((title.includes('PRO Individual') && (userProfile?.rango === 'PRO' || isPending)) || 
+                (title.includes('Institucional') && userProfile?.rango === 'B2B')) {
+                button.innerText = isPending ? 'Procesando Pago...' : 'Tu Plan Actual';
                 button.disabled = true;
                 button.className = 'btn-secondary';
                 button.style.opacity = '0.7';
-                card.style.borderColor = '#00C853';
+                card.style.borderColor = isPending ? 'var(--accent-blue)' : '#00C853';
             }
         } else if (isExpired && isPro) {
             if (title.includes('Individual') || title.includes('Institucional')) {
