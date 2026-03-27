@@ -5,7 +5,7 @@
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,7 +49,7 @@ module.exports = async function handler(req, res) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                from: 'RoboCoach <verificacion@robocoach-academy.vercel.app>',
+                from: 'RoboCoach <onboarding@resend.dev>',
                 to: [email],
                 subject: `${code} es tu código de RoboCoach Academy`,
                 html: emailHtml

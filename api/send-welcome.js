@@ -113,7 +113,7 @@ module.exports = async function handler(req, res) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                from: 'RoboCoach Academy <bienvenida@robocoach-academy.vercel.app>',
+                from: 'RoboCoach Academy <onboarding@resend.dev>',
                 to: [email],
                 subject: `¡Bienvenido a RoboCoach Academy, ${nombre}! 🤖`,
                 html: emailHtml
