@@ -850,3 +850,83 @@ ul.features li {
     .stats-grid { grid-template-columns: 1fr !important; }
     .price { font-size: 2.2rem; }
 }
+
+/* --- Forum Community V5 Enhancements --- */
+.forum-tabs {
+    scrollbar-width: none;
+}
+.forum-tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+.tab-btn:hover { border-color: white; color: white; }
+.tab-btn.active { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+
+.forum-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 1.2rem;
+    transition: var(--transition);
+    position: relative;
+    animation: fadeIn 0.4s ease-out;
+}
+.forum-card:hover { border-color: rgba(0, 163, 224, 0.3); background: rgba(255, 255, 255, 0.05); }
+
+.forum-card.mentor-post {
+    border-color: rgba(0, 163, 224, 0.4);
+    background: linear-gradient(135deg, rgba(0, 163, 224, 0.05) 0%, rgba(15,15,15,1) 100%);
+}
+
+.forum-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: white;
+}
+
+.category-badge {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.like-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: var(--transition);
+}
+.like-btn:hover { background: rgba(227, 27, 35, 0.1); border-color: var(--vex-red); color: var(--vex-red); }
+.like-btn.liked { color: var(--vex-red); border-color: var(--vex-red); background: rgba(227, 27, 35, 0.15); }
+.like-btn svg { width: 14px; height: 14px; }
+
+@media (max-width: 480px) {
+    .forum-tabs .tab-btn { padding: 0.4rem 0.8rem; font-size: 0.75rem; }
+}

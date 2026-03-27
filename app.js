@@ -1154,8 +1154,19 @@ function init() {
 
 init();
 
-// === FORUM (COMUNIDAD) ===
+// === FORUM (COMUNIDAD V5) ===
+let currentForumFilter = 'All';
+
 function openForum() {
+    currentForumFilter = 'All';
+    // Update active tab UI
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector('.tab-btn[onclick*="All"]')?.classList.add('active');
+    
+    // Set author label
+    const userP = JSON.parse(localStorage.getItem('userProfile')) || {};
+    document.getElementById('forumAuthorLabel').innerText = userP.nombre || userEmail?.split('@')[0] || 'Usuario';
+    
     renderForumPosts();
     const modal = document.getElementById('forumModal');
     if(modal) modal.style.display = 'flex';
@@ -1166,48 +1177,88 @@ function closeForum() {
     if(modal) modal.style.display = 'none';
 }
 
+function setForumFilter(cat) {
+    currentForumFilter = cat;
+    // Update UI tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText.includes(cat) || (cat === 'All' && btn.innerText === 'Todo'));
+    });
+    renderForumPosts();
+}
+
 async function renderForumPosts() {
     const container = document.getElementById('forumPosts');
     if(!container) return;
     
     try {
-        const { data: posts, error } = await window.db
+        let query = window.db
             .from('foro_comunidad')
             .select('*')
+            .order('destacado', { ascending: false })
             .order('fecha_publicacion', { ascending: false });
             
+        if (currentForumFilter !== 'All') {
+            query = query.eq('categoria', currentForumFilter);
+        }
+        
+        const { data: posts, error } = await query;
         if (error) throw error;
         
-        container.innerHTML = posts.map(p => `
-            <div style="background:#252525;padding:1rem;border-radius:8px;border:1px solid ${p.autor_rango==='VEX INSTRUCTOR' ? 'var(--accent-blue)' : 'var(--glass-border)'}; ${p.autor_rango==='VEX INSTRUCTOR' ? 'background:rgba(0,180,216,0.05)' : ''}">
-                <div style="display:flex;align-items:center;border-bottom:1px solid var(--glass-border);padding-bottom:0.5rem;margin-bottom:0.5rem;">
-                    <strong style="${p.autor_rango==='VEX INSTRUCTOR' ? 'color:var(--accent-blue)' : 'color:white'}">${sanitize(p.autor_nombre)}</strong>
-                    ${p.autor_rango==='VEX INSTRUCTOR' ? '<span class="status-badge status-pro" style="margin-left:0.5rem;font-size:0.65rem;border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(0,180,216,0.1)">INSTRUCTOR V5</span>' : ''}
-                    <span style="color:var(--text-muted);font-size:0.75rem;margin-left:auto">${new Date(p.fecha_publicacion).toLocaleString()}</span>
+        container.innerHTML = posts.map(p => {
+            const initials = p.autor_nombre.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+            const isVex = p.autor_rango === 'VEX INSTRUCTOR';
+            const dateStr = new Date(p.fecha_publicacion).toLocaleString('es-MX', { 
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+            });
+            
+            return `
+                <div class="forum-card ${isVex ? 'mentor-post' : ''}" id="post-${p.id}">
+                    <div style="display:flex; gap:1rem; align-items:flex-start;">
+                        <div class="forum-avatar" style="background:${isVex ? 'var(--accent-blue)' : '#333'}">${initials}</div>
+                        <div style="flex:1;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <strong style="font-size:0.95rem; color:${isVex ? 'var(--accent-blue)' : 'white'}">${sanitize(p.autor_nombre)}</strong>
+                                    ${isVex ? '<span class="status-badge status-pro" style="font-size:0.6rem; border-color:var(--accent-blue); color:var(--accent-blue); background:rgba(0,180,216,0.1)">INSTRUCTOR</span>' : ''}
+                                    <span class="category-badge">${p.categoria || 'General'}</span>
+                                </div>
+                                <span style="color:var(--text-muted); font-size:0.7rem;">${dateStr}</span>
+                            </div>
+                            <p style="color:#EEE; font-size:0.9rem; white-space:pre-wrap; line-height:1.5;">${sanitize(p.mensaje)}</p>
+                            
+                            <div style="display:flex; gap:1rem; margin-top:1rem; align-items:center;">
+                                <button class="like-btn" onclick="likeForumPost('${p.id}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                    <span>${p.likes || 0}</span>
+                                </button>
+                                ${isVex ? `<button onclick="deleteForumPost('${p.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem;">Eliminar</button>` : ''}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p style="margin-top:0.5rem;font-size:0.9rem;white-space:pre-wrap;line-height:1.4">${sanitize(p.mensaje)}</p>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         
         if(posts.length === 0) {
-            container.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:2rem;">Sé el primero en hacer una pregunta técnica o compartir tu código de competencia.</p>`;
+            container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.2; margin-bottom:1rem;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <p>No hay publicaciones en "${currentForumFilter}".<br>¡Sé el primero en compartir algo!</p>
+            </div>`;
         }
     } catch(err) {
-        console.error("Error al cargar foro de Supabase:", err);
-        container.innerHTML = `<p style="text-align:center;color:var(--vex-red);padding:2rem;">Error conectando al foro en vivo. Reintentando...</p>`;
+        console.error("Error al cargar foro:", err);
     }
 }
 
 async function submitForumPost(e) {
     e.preventDefault();
     const textarea = document.getElementById('forumInput');
+    const category = document.getElementById('forumCategory').value;
     const text = textarea.value.trim();
     if(!text) return;
     
     if(!userEmail) {
-        alert("Debes iniciar sesión para publicar en la comunidad.");
-        closeForum();
-        showLogin();
+        showToast("Debes iniciar sesión para participar en la comunidad.", "error");
         return;
     }
     
@@ -1215,9 +1266,7 @@ async function submitForumPost(e) {
     if (btn) { btn.innerText = 'Enviando...'; btn.disabled = true; }
     
     try {
-        let userP = {};
-        try { userP = JSON.parse(localStorage.getItem('userProfile')) || {}; } catch(e) {}
-        
+        const userP = JSON.parse(localStorage.getItem('userProfile')) || {};
         const authorName = userP.nombre || userEmail.split('@')[0];
         const isMentor = userEmail.includes('domingo') || userEmail.includes('admin') || userP.rango === 'VEX INSTRUCTOR';
         const finalRole = isMentor ? 'VEX INSTRUCTOR' : (userP.rango || 'GRATIS');
@@ -1225,24 +1274,44 @@ async function submitForumPost(e) {
         const { error } = await window.db.from('foro_comunidad').insert([{
             autor_nombre: authorName,
             autor_rango: finalRole,
-            mensaje: text
+            mensaje: text.substring(0, 1000), // Límite de seguridad
+            categoria: category
         }]);
         
         if (error) throw error;
-        
         textarea.value = '';
         renderForumPosts();
     } catch(err) {
-        console.error(err);
-        alert('Error publicando el mensaje.');
+        showToast('Error al publicar mensaje.', 'error');
     } finally {
-        if (btn) { btn.innerText = 'Publicar Sugerencia'; btn.disabled = false; }
+        if (btn) { btn.innerText = 'Enviar'; btn.disabled = false; }
     }
 }
 
-// INYECCIÓN DE TIEMPO REAL
+async function likeForumPost(id) {
+    try {
+        const { error } = await window.db.rpc('like_post', { p_id: id });
+        if (error) throw error;
+        // La actualización en tiempo real (Supabase Channel) se encargará de re-renderizar
+    } catch(err) {
+        console.error("Error en like:", err);
+    }
+}
+
+async function deleteForumPost(id) {
+    if(!confirm("¿Deseas eliminar esta publicación definitivamente?")) return;
+    try {
+        const { error } = await window.db.from('foro_comunidad').delete().eq('id', id);
+        if (error) throw error;
+        renderForumPosts();
+    } catch(err) {
+        showToast('Error al eliminar.', 'error');
+    }
+}
+
+// INYECCIÓN DE TIEMPO REAL REFORZADA
 if (window.db) {
-    window.db.channel('custom-all-channel')
+    window.db.channel('foro-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'foro_comunidad' }, payload => {
           if (document.getElementById('forumModal')?.style.display === 'flex') {
               renderForumPosts();
