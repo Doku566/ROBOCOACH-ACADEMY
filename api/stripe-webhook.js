@@ -35,8 +35,15 @@ module.exports = async function handler(req, res) {
         // ── 1. INDIVIDUAL UPGRADE ──
         if (meta.type === 'individual' || meta.user_email) {
             const email = meta.user_email || session.customer_email;
-            await supabase.from('perfiles').update({ rango: 'PRO' }).eq('email', email);
-            console.log(`✅ Individual PRO activated: ${email}`);
+            const expirationDate = new Date();
+            expirationDate.setFullYear(expirationDate.getFullYear() + 1); // +1 año de acceso PRO
+            
+            await supabase.from('perfiles').update({ 
+                rango: 'PRO',
+                fecha_expiracion: expirationDate.toISOString()
+            }).eq('email', email);
+            
+            console.log(`✅ Individual PRO activated: ${email} (Expires: ${expirationDate.toISOString()})`);
         } 
         
         // ── 2. B2B INSTITUTIONAL ──

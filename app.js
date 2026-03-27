@@ -863,6 +863,7 @@ function processLoginSuccess(emailStr, profileData = null) {
     // Configurar Perfil y tracking
     userProgress = JSON.parse(localStorage.getItem(`progress_${emailStr}`)) || { completed: [], timeSpent: 0 };
     renderUserNav();
+    updatePricingUI(); // Actualizar tarjetas de precios
 }
 
 // === PROGRESS && UI HELPERS ===
@@ -935,8 +936,10 @@ function logoutUser() {
     if(timeInterval) clearInterval(timeInterval);
     localStorage.removeItem('userEmail');
     localStorage.removeItem('isSubscribed');
+    localStorage.removeItem('userProfile');
     renderUserNav();
     renderCourses();
+    updatePricingUI();
 }
 
 function showProfileModal() {
@@ -1069,6 +1072,7 @@ function init() {
         userProgress = JSON.parse(localStorage.getItem(`progress_${userEmail}`)) || { completed: [], timeSpent: 0 };
         renderUserNav();
     }
+    updatePricingUI();
 }
 
 init();
@@ -1168,4 +1172,49 @@ if (window.db) {
           }
       })
       .subscribe();
+}
+
+function updatePricingUI() {
+    const userProfile = JSON.parse(localStorage.getItem('userProfile'));
+    const isPro = userProfile && (userProfile.rango === 'PRO' || userProfile.rango === 'B2B' || userProfile.rango === 'VEX INSTRUCTOR');
+    const isExpired = userProfile && userProfile.fecha_expiracion && new Date(userProfile.fecha_expiracion) < new Date();
+
+    const prices = document.querySelectorAll('.price-card');
+    prices.forEach(card => {
+        const title = card.querySelector('h3').innerText;
+        const button = card.querySelector('button');
+        if (!button) return;
+
+        if (isPro && !isExpired) {
+            if ((title.includes('PRO Individual') && userProfile.rango === 'PRO') || 
+                (title.includes('Institucional') && userProfile.rango === 'B2B')) {
+                button.innerText = 'Tu Plan Actual';
+                button.disabled = true;
+                button.className = 'btn-secondary';
+                button.style.opacity = '0.7';
+                card.style.borderColor = '#00C853';
+            }
+        } else if (isExpired && isPro) {
+            if (title.includes('Individual') || title.includes('Institucional')) {
+                button.innerText = 'Renovar Licencia';
+                button.disabled = false;
+                button.className = 'btn-primary';
+                button.style.background = '#FF9800'; 
+                button.style.borderColor = '#FF9800';
+            }
+        } else {
+            // Restore defaults
+            if (title.includes('PRO Individual')) {
+                button.innerText = 'Suscribirse Ahora';
+                button.disabled = false;
+                button.className = 'btn-primary';
+                button.style = '';
+            } else if (title.includes('Institucional')) {
+                button.innerText = 'Adquirir Licencias';
+                button.disabled = false;
+                button.className = 'btn-primary';
+                button.style = '';
+            }
+        }
+    });
 }
