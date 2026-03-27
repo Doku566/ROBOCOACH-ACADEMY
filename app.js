@@ -521,19 +521,26 @@ async function checkAuthStep() {
         if (data && data.length > 0) {
             const profile = data[0];
             
-            // Step 2: Get License if applicable (Safe query, doesn't require pre-defined GORM-style relationship)
+            // Step 2: B2B License Check
             if (profile.rango === 'B2B' && profile.licencia_codigo) {
                 const { data: lic } = await window.db.from('licencias_b2b').select('*').eq('codigo', profile.licencia_codigo).single();
-                
                 if (lic) {
                     const isExpired = new Date(lic.fecha_expiracion) < new Date();
-                    const isActive = lic.activa;
-
-                    if (isExpired || !isActive) {
+                    if (isExpired || !lic.activa) {
                         profile.rango = 'GRATIS';
                         await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', profile.id);
                         showToast('Licencia institucional expirada. Nivel: GRATIS.', 'warning');
                     }
+                }
+            }
+
+            // Step 3: Individual PRO Expiry Check
+            if (profile.rango === 'PRO' && profile.fecha_expiracion) {
+                const isExpired = new Date(profile.fecha_expiracion) < new Date();
+                if (isExpired) {
+                    profile.rango = 'GRATIS';
+                    await window.db.from('perfiles').update({ rango: 'GRATIS' }).eq('id', profile.id);
+                    showToast('Tu suscripción PRO ha expirado. Nivel: GRATIS.', 'warning');
                 }
             }
 
@@ -893,17 +900,12 @@ function renderUserNav() {
     if (!navArea) return;
     
     if (userEmail) {
-        let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-        const user = usersDB.find(u => u.email === userEmail) || { status: isSubscribed?'pro':'free' };
+        // Obtener perfil de LocalStorage (sincronizado con Supabase)
+        const profile = JSON.parse(localStorage.getItem('userProfile')) || {};
         
-        // Safely extract name, fallback to email prefix
-        let name = userEmail.split('@')[0];
-        if (user.profileData && user.profileData.name) {
-            name = user.profileData.name;
-        }
-        
+        let name = profile.nombre || userEmail.split('@')[0];
         const initial = name.charAt(0).toUpperCase();
-        const isPro = (user.status === 'pro' || user.status === 'inst' || isSubscribed);
+        const isPro = (profile.rango === 'PRO' || profile.rango === 'B2B' || profile.rango === 'VEX INSTRUCTOR');
         
         navArea.innerHTML = `
             <div class="profile-dropdown-container">
@@ -944,13 +946,9 @@ function logoutUser() {
 
 function showProfileModal() {
     toggleProfileMenu(); 
-    let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-    let user = usersDB.find(u => u.email === userEmail);
-    if(!user) {
-        user = { email: userEmail, status: isSubscribed?'pro':'free', profileData: { name: userEmail.split('@')[0] } };
-    }
+    const profile = JSON.parse(localStorage.getItem('userProfile')) || {};
     
-    const isPro = user.status === 'pro' || user.status === 'inst' || isSubscribed;
+    const isPro = profile.rango === 'PRO' || profile.rango === 'B2B' || profile.rango === 'VEX INSTRUCTOR';
     const hrs = Math.floor((userProgress.timeSpent || 0) / 3600);
     const mins = Math.floor(((userProgress.timeSpent || 0) % 3600) / 60);
     const comps = (userProgress.completed || []).length;
@@ -958,17 +956,10 @@ function showProfileModal() {
     const totalCourses = courses.length;
     const pct = Math.round((comps / totalCourses) * 100) || 0;
     
-    let name = userEmail.split('@')[0];
-    let university = 'N/A';
-    let team = 'N/A';
-    let role = 'Programador';
-    
-    if(user.profileData) {
-        if(user.profileData.name) name = user.profileData.name;
-        if(user.profileData.university) university = user.profileData.university;
-        if(user.profileData.team) team = user.profileData.team;
-        if(user.profileData.role) role = user.profileData.role;
-    }
+    let name = profile.nombre || userEmail.split('@')[0];
+    let university = profile.escuela || 'N/A';
+    let team = profile.equipo || 'N/A';
+    let role = profile.rango || 'Estudiante';
 
     const modal = document.getElementById('checkoutModal');
     modal.style.display = 'flex';
@@ -1025,24 +1016,44 @@ function showProfileModal() {
     `;
 }
 
-function redeemCode() {
-    const code = prompt("Ingresa el código Mágico Institucional proporcionado por tu profesor o universidad (Ej. UAT-X93K3):");
+async function redeemCode() {
+    const code = prompt("Ingresa el código Institucional (Ej. UAT-X93K3):");
     if(!code || code.trim().length < 5) return;
     
-    alert(`Código "${code}" aceptado y validado. ¡Felicidades, se ha activado tu Licencia PRO Institucional!`);
-    
-    let usersDB = JSON.parse(localStorage.getItem('admin_users')) || [];
-    let i = usersDB.findIndex(u => u.email === userEmail);
-    if(i > -1) {
-        usersDB[i].status = 'inst';
-        localStorage.setItem('admin_users', JSON.stringify(usersDB));
+    try {
+        const { data: lic, error: licErr } = await window.db
+            .from('licencias_b2b')
+            .select('*')
+            .eq('codigo', code.trim())
+            .single();
+            
+        if (licErr || !lic) throw new Error("Código no encontrado o inválido.");
+        if (!lic.activa) throw new Error("Esta licencia ya no está activa.");
+        
+        // Registrar en Supabase
+        const { error: updErr } = await window.db
+            .from('perfiles')
+            .update({ 
+                rango: 'B2B', 
+                licencia_codigo: code.trim() 
+            })
+            .eq('email', userEmail);
+            
+        if (updErr) throw updErr;
+
+        // Incrementar asientos mediante RPC
+        await window.db.rpc('increment_asientos', { p_codigo: code.trim() });
+
+        alert(`¡Felicidades! Se ha activado tu Licencia Institucional vinculada a: ${lic.institucion}`);
+        
+        // Sync local
+        const { data: newProfile } = await window.db.from('perfiles').select('*').eq('email', userEmail).single();
+        processLoginSuccess(userEmail, newProfile);
+        
+        closeModal();
+    } catch(err) {
+        alert("Error al validar código: " + err.message);
     }
-    
-    isSubscribed = true;
-    localStorage.setItem('isSubscribed', 'true');
-    closeModal();
-    renderUserNav();
-    setTimeout(showProfileModal, 300);
 }
 
 // === HELPERS ===
