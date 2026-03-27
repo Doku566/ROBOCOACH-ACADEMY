@@ -1080,6 +1080,30 @@ function init() {
     if (document.getElementById('courseGrid')) renderCourses();
 
     if (userEmail) {
+        // Re-sincronizar perfil con Supabase (Seguridad de Grado SaaS)
+        window.db.from('perfiles').select('*').eq('email', userEmail).single().then(({data, error}) => {
+            if (data && !error) {
+                localStorage.setItem('userProfile', JSON.stringify(data));
+                renderUserNav();
+                updatePricingUI();
+            }
+        });
+
+        if (window.location.search.includes('session_id') || window.location.href.includes('success')) {
+            showToast('¡Pago recibido! Sincronizando tu acceso PRO...', 'info');
+            setTimeout(() => {
+                // Re-consulta final tras unos segundos (latencia de webhook)
+                window.db.from('perfiles').select('*').eq('email', userEmail).single().then(({data}) => {
+                    if (data) {
+                        localStorage.setItem('userProfile', JSON.stringify(data));
+                        renderUserNav();
+                        updatePricingUI();
+                        if(data.rango === 'PRO') showToast('¡Modo PRO Activado! Bienvenido.', 'success');
+                    }
+                });
+            }, 3000);
+        }
+
         userProgress = JSON.parse(localStorage.getItem(`progress_${userEmail}`)) || { completed: [], timeSpent: 0 };
         renderUserNav();
     }
