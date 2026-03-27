@@ -88,6 +88,16 @@ async function renderPortalPosts() {
                                 <span style="color:var(--text-muted); font-size:0.75rem;">${new Date(p.fecha_publicacion).toLocaleString()}</span>
                             </div>
                             <p style="white-space:pre-wrap; line-height:1.6; color:#ddd; font-size:0.95rem;">${sanitize(p.mensaje)}</p>
+                            
+                            ${p.respuesta_admin ? `
+                                <div class="instructor-feedback">
+                                    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                        <span class="badge-official">INSTRUCTOR FEEDBACK</span>
+                                    </div>
+                                    <p style="font-size:0.85rem; color:var(--accent-blue);">${sanitize(p.respuesta_admin)}</p>
+                                </div>
+                            ` : ''}
+
                             <div style="margin-top:1rem; display:flex; gap:1rem;">
                                 <button class="like-btn" onclick="likePortalPost('${p.id}')">
                                     ${ICONS.heart} <span>${p.likes || 0}</span>

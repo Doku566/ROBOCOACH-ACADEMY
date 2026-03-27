@@ -108,6 +108,7 @@
                 <div class="admin-tab active" onclick="switchTab('tabEstudiantes')">Estudiantes</div>
                 <div class="admin-tab" onclick="switchTab('tabLicencias')">Convenios Institucionales (B2B)</div>
                 <div class="admin-tab" onclick="switchTab('tabContenido')">Gestor de Contenido (CMS)</div>
+                <div class="admin-tab" onclick="switchTab('tabComunidad')">Gestión Comunidad V5</div>
             </div>
 
             <!-- TAB 1: ESTUDIANTES -->
@@ -164,6 +165,13 @@
                         <!-- Dynamic Rows -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- TAB 4: COMUNIDAD -->
+            <div id="tabComunidad" class="tab-content">
+                <div id="adminCommunityFeed" style="display:grid; gap:1rem;">
+                    <!-- posts loaded here -->
+                </div>
             </div>
         </div>
     </div>
@@ -367,6 +375,7 @@
             await renderUsers();
             await renderLicenses();
             await renderContent();
+            await renderCommunity();
         }
 
         async function renderKPIs() {
@@ -645,6 +654,79 @@
         }
 
         // Add some basic styling dynamically 
+        // === COMUNIDAD ADMIN ===
+        async function renderCommunity() {
+            const container = document.getElementById('adminCommunityFeed');
+            container.innerHTML = '<p style="text-align:center;padding:2rem;color:#666">Cargando comunidad...</p>';
+            try {
+                const { data: posts, error } = await window.db.from('foro_comunidad')
+                    .select('*')
+                    .order('fecha_publicacion', { ascending: false });
+                if (error) throw error;
+
+                container.innerHTML = posts.map(p => `
+                    <div class="forum-card ${p.destacado ? 'mentor-post' : ''}" style="border-radius:8px; padding:1.2rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <div style="flex:1;">
+                                <div style="display:flex; align-items:center; gap:0.8rem; margin-bottom:0.5rem;">
+                                    <strong style="color:white">${sanitize(p.autor_nombre)}</strong>
+                                    <span class="category-badge">${p.categoria}</span>
+                                    ${p.destacado ? '<span class="status-badge" style="background:rgba(255,193,7,0.2);color:#FFC107;font-size:0.6rem">DESTACADO</span>' : ''}
+                                </div>
+                                <p style="color:#EEE; font-size:0.9rem; margin-bottom:1rem;">${sanitize(p.mensaje)}</p>
+                                ${p.respuesta_admin ? `
+                                    <div class="instructor-feedback">
+                                        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem">
+                                            <span class="badge-official">INSTRUCTOR FEEDBACK</span>
+                                        </div>
+                                        <p style="font-size:0.85rem; color:var(--accent-blue);">${sanitize(p.respuesta_admin)}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:0.5rem; min-width:120px;">
+                                <button class="btn-secondary" style="padding:0.4rem;font-size:0.75rem;border-color:var(--accent-blue);color:var(--accent-blue)" onclick="replyPost('${p.id}')">Responder</button>
+                                <button class="btn-secondary" style="padding:0.4rem;font-size:0.75rem;border-color:${p.destacado ? '#ff4444' : '#FFC107'};color:${p.destacado ? '#ff4444' : '#FFC107'}" onclick="toggleHighlight('${p.id}', ${p.destacado})">${p.destacado ? 'Quitar Destacado' : 'Destacar Post'}</button>
+                                <button class="btn-secondary" style="padding:0.4rem;font-size:0.75rem;border-color:#ff4444;color:#ff4444" onclick="deleteForumPost('${p.id}')">Borrar</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                if(posts.length === 0) container.innerHTML = '<p style="text-align:center;color:#666">No hay publicaciones.</p>';
+            } catch(e) { console.error(e); }
+        }
+
+        async function replyPost(id) {
+            const feedback = prompt("Ingresa el feedback técnico o respuesta oficial para este alumno:");
+            if (!feedback) return;
+            try {
+                const { error } = await window.db.from('foro_comunidad').update({ respuesta_admin: feedback }).eq('id', id);
+                if (error) throw error;
+                showToast("Feedback enviado con éxito.", "success");
+                renderCommunity();
+            } catch(e) { 
+                showToast("Error al enviar feedback. ¿Activaste la columna en Supabase?", "error");
+            }
+        }
+
+        async function toggleHighlight(id, current) {
+            try {
+                const { error } = await window.db.from('foro_comunidad').update({ destacado: !current }).eq('id', id);
+                if (error) throw error;
+                showToast("Estado de destacado actualizado.", "success");
+                renderCommunity();
+            } catch(e) { console.error(e); }
+        }
+
+        async function deleteForumPost(id) {
+            if(!confirm("¿Eliminar publicación definitivamente?")) return;
+            try {
+                const { error } = await window.db.from('foro_comunidad').delete().eq('id', id);
+                if (error) throw error;
+                showToast("Publicación eliminada.", "success");
+                renderCommunity();
+            } catch(e) { console.error(e); }
+        }
+
         function sanitize(str) {
             if (!str) return '';
             return str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
