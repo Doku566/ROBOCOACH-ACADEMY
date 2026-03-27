@@ -17,7 +17,7 @@
                 <div class="logo"><span>ROBOCOACH</span> ACADEMY</div>
                 <ul class="nav-links" id="navLinks">
                     <li><a href="#cursos" onclick="closeNav()">Cursos</a></li>
-                    <li><a href="#" onclick="openForum(); closeNav(); return false;">Comunidad V5</a></li>
+                    <li><a href="comunidad.html">Comunidad V5</a></li>
                     <li><a href="#suscripcion" onclick="closeNav()">Planes</a></li>
                 </ul>
                 <div style="display:flex;align-items:center;gap:1rem;">
@@ -124,46 +124,7 @@
     <!-- Modals -->
     <div id="checkoutModal" class="modal"></div>
 
-    <!-- MODAL FORO COMUNIDAD -->
-    <div id="forumModal" class="modal" style="display:none;align-items:center;justify-content:center;z-index:2000">
-        <div class="modal-content" style="max-width:800px;background:#1A1A1A;display:flex;flex-direction:column;max-height:85vh;width:95%;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                <h2 style="margin:0;color:var(--accent-blue);display:flex;align-items:center;gap:0.5rem;">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                    Comunidad V5 Pro
-                </h2>
-                <span class="close" onclick="closeForum()">&times;</span>
-            </div>
-            
-            <!-- Barra de Filtros -->
-            <div class="forum-tabs" style="display:flex;gap:0.5rem;margin-bottom:1rem;border-bottom:1px solid var(--glass-border);padding-bottom:0.5rem;overflow-x:auto;">
-                <button class="tab-btn active" onclick="setForumFilter('All')">Todo</button>
-                <button class="tab-btn" onclick="setForumFilter('Código')">Código</button>
-                <button class="tab-btn" onclick="setForumFilter('Soporte')">Soporte</button>
-                <button class="tab-btn" onclick="setForumFilter('Competencia')">Competencia</button>
-                <button class="tab-btn" onclick="setForumFilter('General')">General</button>
-            </div>
 
-            <div id="forumPosts" style="flex:1;overflow-y:auto;background:#141414;border:1px solid var(--glass-border);border-radius:12px;padding:1rem;margin-bottom:1rem;display:flex;flex-direction:column;gap:1.5rem;min-height:300px">
-            </div>
-            
-            <form onsubmit="submitForumPost(event)" style="display:flex;flex-direction:column;gap:0.8rem;border-top:1px solid var(--glass-border);padding-top:1rem;">
-                <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <select id="forumCategory" style="background:#252525;color:white;border:1px solid var(--glass-border);padding:0.5rem;border-radius:6px;font-size:0.85rem;">
-                        <option value="General">💬 General</option>
-                        <option value="Código">⌨️ Código</option>
-                        <option value="Soporte">🛠️ Soporte</option>
-                        <option value="Competencia">🏆 Competencia</option>
-                    </select>
-                    <span style="color:var(--text-muted);font-size:0.8rem;">Publicando como: <strong id="forumAuthorLabel" style="color:white">Usuario</strong></span>
-                </div>
-                <div style="display:flex;gap:0.5rem;">
-                    <textarea id="forumInput" rows="2" placeholder="Haz una pregunta técnica o comparte tu código..." style="flex:1;padding:0.8rem;background:#252525;color:white;border:1px solid var(--glass-border);border-radius:8px;resize:none;font-family:inherit;font-size:0.9rem;"></textarea>
-                    <button type="submit" class="btn-primary" style="padding:0 1.5rem;">Enviar</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script src="curriculum_p1.js"></script>
     <script src="curriculum_p2.js"></script>
