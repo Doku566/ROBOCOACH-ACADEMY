@@ -11,18 +11,21 @@ let examAnswers = {};
 let userProgress = {};
 let timeInterval = null;
 
-// === SVG ICONS ===
+// === SVG ICONS (Premium SaaS Standard) ===
 const ICONS = {
     play:     `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
     lock:     `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
     book:     `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`,
     pencil:   `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>`,
-    security: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+    security: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
     rocket:   `<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="var(--vex-red)" stroke-width="1.5"><path d="M12 2L8 8H4l-2 8 4-1 2 5 4-4 4 4 2-5 4 1-2-8h-4L12 2z"></path><circle cx="12" cy="10" r="2" fill="var(--vex-red)"></circle></svg>`,
     exam:     `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>`,
     check:    `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
     user:     `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`,
-    message:  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`
+    message:  `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+    logout:   `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>`,
+    sync:     `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
+    trophy:   `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.34M12 4v10.66M8 4h8v9a4 4 0 0 1-8 0V4z"></path></svg>`
 };
 
 // === SANITIZE ===
@@ -495,8 +498,9 @@ function showLogin(emailInputValue = '') {
                 <input type="email" id="loginEmail" placeholder="alumno@utmatamoros.edu.mx" value="${emailInputValue || userEmail || ''}" onkeydown="if(event.key==='Enter')checkAuthStep()">
             </div>
             <button class="btn-primary" style="width:100%;margin-top:1rem" onclick="checkAuthStep()">Continuar</button>
-            <p style="text-align:center;margin-top:1.5rem;font-size:0.8rem;color:#A0A0A0;background:rgba(255,255,255,0.05);padding:1rem;border-radius:8px;">
-                💡 Las universidades integradas (ej. <strong>@utmatamoros.edu.mx</strong>) reciben acceso PRO gratuito instantáneamente tras el registro.
+            <p style="text-align:center;margin-top:1.5rem;font-size:0.8rem;color:#A0A0A0;background:rgba(255,255,255,0.05);padding:1rem;border-radius:8px; display:flex; gap:0.5rem; align-items:flex-start;">
+                <span style="color:var(--accent-blue)">${ICONS.security}</span>
+                <span>Las universidades integradas reciben acceso PRO gratuito instantáneamente tras el registro.</span>
             </p>
         </div>
     `;
@@ -514,8 +518,8 @@ async function checkAuthStep() {
     if(btn) { btn.innerText = "Consultando BD Nube..."; btn.disabled = true; }
 
     try {
-        // Step 1: Get Profile
-        const { data, error } = await window.db.from('perfiles').select('*').eq('email', emailStr);
+        // Step 1: Get Profile (Case-insensitive check for reliability)
+        const { data, error } = await window.db.from('perfiles').select('*').ilike('email', emailStr.trim()).limit(1);
         if (error) throw error;
 
         if (data && data.length > 0) {
@@ -646,7 +650,7 @@ function showVerificationModal(email, userData) {
     modal.innerHTML = `
         <div class="modal-content" style="max-width:450px; text-align:center;">
             <span class="close" onclick="closeModal()">&times;</span>
-            <div style="font-size:3rem;margin-bottom:1rem;">✉️</div>
+            <div style="font-size:3rem;margin-bottom:1rem;color:var(--accent-blue)">${ICONS.message}</div>
             <h2 style="margin-bottom:0.5rem">Verifica tu Correo</h2>
             <p style="color:#A0A0A0;font-size:0.9rem;margin-bottom:1.5rem;">
                 Hemos enviado un código de 6 dígitos a <strong>${email}</strong>.<br>Búscalo en tu bandeja de entrada o spam.
@@ -657,7 +661,9 @@ function showVerificationModal(email, userData) {
             </div>
             <button class="btn-primary" style="width:100%;margin-top:1rem;background:#00C853;border-color:#00C853;" 
                 onclick='verifyAndComplete("${email}", ${JSON.stringify(userData)})'>Validar y Finalizar</button>
-            <p style="margin-top:1rem; font-size:0.8rem; color:#666; cursor:pointer;" onclick="showRegistrationForm('${email}')">← Volver / Corregir Correo</p>
+            <p style="margin-top:1rem; font-size:0.8rem; color:#666; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem" onclick="showRegistrationForm('${email}')">
+                <span style="rotate:180deg; display:inline-block">${ICONS.logout}</span> Corregir Correo
+            </p>
         </div>
     `;
     setTimeout(()=>document.getElementById('verifyCode')?.focus(), 100);
@@ -1007,12 +1013,21 @@ function showProfileModal() {
                 <div class="progress-container">
                     <div class="progress-bar" style="width:${pct}%"></div>
                 </div>
-                <p style="margin-top:1.5rem;font-size:0.85rem;color:var(--text-muted)">
-                    ⏱️ Tiempo concentrado de estudio: <strong style="color:white;font-size:1rem">${hrs}h ${mins}m</strong>
+                <p style="margin-top:1.5rem;font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem">
+                    <span style="opacity:0.6">${ICONS.sync}</span> Tiempo de estudio: <strong style="color:white;font-size:1rem">${hrs}h ${mins}m</strong>
                 </p>
-                ${!isPro ? `<button class="btn-primary" style="width:100%;margin-top:1.5rem;background:#00B4D8;border:none;" onclick="redeemCode()">Canjear Código Institucional B2B</button>` : ''}
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; margin-top:1.5rem;">
+                    <button class="btn-primary" style="background:var(--accent-blue);border:none;font-size:0.8rem;" onclick="syncProfile()">
+                        Sincronizar Acceso
+                    </button>
+                    ${!isPro ? `<button class="btn-primary" style="background:#00B4D8;border:none;font-size:0.8rem;" onclick="redeemCode()">
+                        Canjear Código
+                    </button>` : `<button class="btn-secondary" style="border-color:var(--glass-border);color:#00C853;font-size:0.8rem;">
+                        Certificado PRO
+                    </button>`}
+                </div>
             </div>
-            <button class="btn-secondary" style="width:100%;border-color:var(--glass-border);color:white" onclick="closeModal()">Cerrar Perfil</button>
+            <button class="btn-secondary" style="width:100%;margin-top:1rem;border-color:var(--glass-border);color:white" onclick="closeModal()">Cerrar Perfil</button>
         </div>
     `;
 }
@@ -1054,6 +1069,30 @@ async function redeemCode() {
         closeModal();
     } catch(err) {
         alert("Error al validar código: " + err.message);
+    }
+}
+
+async function syncProfile() {
+    if (!userEmail) return;
+    const btn = event?.target;
+    if(btn) btn.innerText = "Sincronizando...";
+    
+    try {
+        const { data, error } = await window.db.from('perfiles').select('*').ilike('email', userEmail.trim()).single();
+        if (error) throw error;
+        
+        localStorage.setItem('userProfile', JSON.stringify(data));
+        localStorage.removeItem('pending_pro_sync');
+        isSubscribed = (data.rango === 'PRO' || data.rango === 'B2B' || data.rango === 'VEX INSTRUCTOR');
+        
+        showToast(`Sincronización exitosa. Plan: ${data.rango}`, 'success');
+        renderUserNav();
+        updatePricingUI();
+        if (document.getElementById('checkoutModal')?.style.display === 'flex') showProfileModal();
+    } catch (err) {
+        showToast('Error al sincronizar: ' + err.message, 'error');
+    } finally {
+        if(btn) btn.innerText = "Sincronizar Acceso";
     }
 }
 
