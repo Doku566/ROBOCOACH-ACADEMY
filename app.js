@@ -1116,7 +1116,20 @@ function updatePricingUI() {
     const userProfile = JSON.parse(localStorage.getItem('userProfile'));
     const isPro = userProfile && (userProfile.rango === 'PRO' || userProfile.rango === 'B2B' || userProfile.rango === 'VEX INSTRUCTOR');
     const isExpired = userProfile && userProfile.fecha_expiracion && new Date(userProfile.fecha_expiracion) < new Date();
-    const isPending = localStorage.getItem('pending_pro_sync') === 'true';
+    const btnFree = document.getElementById('btn-free-plan');
+    if (btnFree) {
+        if ((isPro && !isExpired) || isPending) {
+            btnFree.innerText = "Plan Básico (Activo)";
+            btnFree.disabled = true;
+            btnFree.className = "btn-secondary";
+            btnFree.style.opacity = "0.5";
+        } else {
+            btnFree.innerText = "Tu Plan Actual";
+            btnFree.disabled = true;
+            btnFree.className = "btn-secondary";
+            btnFree.style.opacity = "1";
+        }
+    }
 
     const prices = document.querySelectorAll('.price-card');
     prices.forEach(card => {
@@ -1145,7 +1158,7 @@ function updatePricingUI() {
         } else {
             // Restore defaults
             if (title.includes('PRO Individual')) {
-                button.innerText = 'Suscribirse Ahora';
+                button.innerText = 'Mejorar a PRO';
                 button.disabled = false;
                 button.className = 'btn-primary';
                 button.style = '';
