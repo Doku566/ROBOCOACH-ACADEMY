@@ -392,12 +392,14 @@ async function handleIndividualCheckout() {
 // === B2B CHECKOUT ===
 function showB2BCheckout() {
     const modal = document.getElementById('checkoutModal');
+    if (!modal) return;
     modal.style.display = 'flex';
     modal.style.padding = '2rem';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width:600px;">
+        <div class="modal-content" style="max-width:600px; text-align:left;">
             <span class="close" onclick="closeModal()">&times;</span>
             <div style="text-align:center;margin-bottom:1.5rem">
+                <div style="color:var(--accent-blue); margin-bottom:1rem;">${ICONS.security}</div>
                 <h2 style="margin-bottom:0.5rem">Licencia Institucional B2B</h2>
                 <p style="color:#A0A0A0;font-size:0.9rem">Activa el acceso para toda tu escuela usando el dominio de correo oficial.</p>
             </div>
@@ -408,13 +410,13 @@ function showB2BCheckout() {
                     <input type="text" id="b2bInst" required placeholder="Ej. Universidad Tecnológica de Matamoros">
                 </div>
                 <div class="form-group">
-                    <label>Dominio de Correo Autorizado</label>
+                    <label>Dominio de Correo Autorizado (Ej: @mi-escuela.edu)</label>
                     <input type="text" id="b2bDomain" required placeholder="Ej. @utmatamoros.edu.mx">
                 </div>
                 <div class="flex-row">
                     <div class="form-group">
                         <label>Cantidad de Asientos (Mínimo 10)</label>
-                        <input type="number" id="b2bSeats" value="10" min="10" max="500" required>
+                        <input type="number" id="b2bSeats" value="10" min="10" max="5000" required>
                     </div>
                     <div class="form-group">
                         <label>Email de Contacto Administrativo</label>
@@ -422,11 +424,12 @@ function showB2BCheckout() {
                     </div>
                 </div>
                 
-                <div style="background:rgba(0,180,216,0.1);padding:1rem;border-radius:12px;border:1px solid var(--accent-blue);margin:1rem 0;">
+                <div style="background:rgba(0,180,216,0.1);padding:1.2rem;border-radius:12px;border:1px solid var(--accent-blue);margin:1rem 0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-weight:600">Total Anual Estimado:</span>
                         <span id="b2bTotal" style="font-size:1.5rem;font-weight:800;color:var(--accent-blue)">$200 USD</span>
                     </div>
+                    <p style="font-size:0.7rem; color:var(--text-muted); margin-top:0.4rem;">Acceso de por vida v5 para todos los alumnos bajo el dominio indicado. Panel de Maestro incluido.</p>
                 </div>
                 <button type="submit" class="btn-primary" style="width:100%;background:var(--accent-blue);border-color:var(--accent-blue)">Ir a Pago Seguro en Stripe</button>
                 <p style="text-align:center;margin-top:1rem;font-size:0.8rem;color:#A0A0A0;cursor:pointer" onclick="handleIndividualCheckout()">¿Solo para ti? Comprar Plan Individual PRO</p>
@@ -741,53 +744,6 @@ async function verifyAndComplete(email, userData) {
     }
 }
 
-function showB2BCheckout() {
-    const modal = document.getElementById('checkoutModal');
-    modal.style.display = 'flex';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width:500px; text-align:left;">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <div style="text-align:center;margin-bottom:1.5rem;">
-                <h2 style="color:var(--accent-blue)">${ICONS.security} Licencia Institucional</h2>
-                <p style="color:#A0A0A0;font-size:0.9rem">Adquiere asientos para tu equipo o universidad. $20 USD por asiento al año.</p>
-            </div>
-            <form onsubmit="handleStripeB2B(event)">
-                <div class="form-group">
-                    <label>Nombre de la Institución</label>
-                    <input type="text" id="b2bInst" required placeholder="Ej. Universidad Autónoma de Tamaulipas">
-                </div>
-                <div class="form-group">
-                    <label>Dominio de Correo Autorizado</label>
-                    <input type="text" id="b2bDomain" required placeholder="Ej. @utmatamoros.edu.mx">
-                    <p style="font-size:0.75rem;color:#666;margin-top:0.3rem">Los alumnos con este dominio serán vinculados automáticamente.</p>
-                </div>
-                <div class="flex-row">
-                    <div class="form-group">
-                        <label>Número de Asientos</label>
-                        <input type="number" id="b2bSeats" min="10" max="500" value="10" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email de Contacto (Facturación)</label>
-                        <input type="email" id="b2bEmail" required value="${userEmail || ''}">
-                    </div>
-                </div>
-                <div style="background:rgba(0,180,216,0.1);padding:1rem;border-radius:8px;margin:1rem 0;border:1px solid rgba(0,180,216,0.2)">
-                    <div style="display:flex;justify-content:space-between;font-weight:700;">
-                        <span>Inversión Total:</span>
-                        <span id="b2bTotal">$200 USD</span>
-                    </div>
-                    <p style="font-size:0.75rem;margin-top:0.3rem">Pago único anual. Incluye Panel de Maestro y Soporte Técnico.</p>
-                </div>
-                <button type="submit" class="btn-primary" style="width:100%;background:var(--accent-blue);border-color:var(--accent-blue)">Proceder al Pago Seguro</button>
-            </form>
-        </div>
-    `;
-
-    document.getElementById('b2bSeats').addEventListener('input', (e) => {
-        const seats = parseInt(e.target.value) || 0;
-        document.getElementById('b2bTotal').innerText = `$${seats * 20} USD`;
-    });
-}
 
 async function handleStripeB2B(e) {
     e.preventDefault();
